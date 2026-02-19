@@ -1,0 +1,1 @@
+"""Serveur MCP pour OpenSlice"""
