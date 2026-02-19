@@ -11,26 +11,22 @@ Solution générique de gestion de services à base d'intentions. Décompose tou
 - **Décomposition**: Adaptative selon complexité (1 sous-intention si simple, 2-3+ si complexe)
 - **Flexibilité**: Fonctionne pour tout type de service (réseau, web, IoT, IA, etc.)
 - **LLM**: Llama 3.3 8B - **GRATUIT, LOCAL, OFFLINE** (8 GB RAM)
-- **Responsable**: Cyrine
 
 ### Agent 2: Le Sélecteur (Service Broker)
 - **Rôle**: Sélection sémantique de services via RAG
 - **Technologie**: ChromaDB + sentence-transformers
 - **Entrée**: Intention structurée
 - **Sortie**: UUID de ServiceSpecification OpenSlice
-- **Responsable**: Cyrine
 
 ### Agent 3: Le Traducteur (TMF641 Mapper)
 - **Rôle**: Génération d'ordres de service TMF641
 - **Technologie**: Few-Shot Prompting
 - **Entrée**: UUID + Contraintes
 - **Sortie**: ServiceOrder TMF641 (JSON)
-- **Responsable**: Sarra
 
 ### Agent 4: Le Validateur (Quality Assurance)
 - **Rôle**: Validation JSON TMF641
 - **Technologie**: jsonschema + Pydantic
-- **Responsable**: Sarra
 
 ## Installation
 
@@ -102,10 +98,10 @@ python -m agents.agent2_selector
 ```
 ai_agent/
 ├── agents/
-│   ├── agent1_interpreter.py  # Agent 1 (Cyrine)
-│   ├── agent2_selector.py     # Agent 2 (Cyrine)
-│   ├── agent3_translator.py   # Agent 3 (Sarra)
-│   └── agent4_validator.py    # Agent 4 (Sarra)
+│   ├── agent1_interpreter.py  # Agent 1
+│   ├── agent2_selector.py     # Agent 2
+│   ├── agent3_translator.py   # Agent 3
+│   └── agent4_validator.py    # Agent 4
 ├── schemas/
 │   ├── intent.py              # Schémas Intent (JSON Agnostique)
 │   └── tmf641.py              # Schémas Service Order TMF641
