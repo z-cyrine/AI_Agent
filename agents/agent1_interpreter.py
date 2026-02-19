@@ -2,7 +2,7 @@
 Agent 1: L'Interpréteur (Intent Planner)
 
 Rôle: Transformer toute requête en langage naturel en intentions structurées (JSON Agnostique)
-Technologie: LLM (GPT-4o/Claude 3.5) + Pydantic
+Technologie: LLM (Llama 3.3 70B via API) + Pydantic
 Responsable: Cyrine
 
 Principe: Décomposition adaptative - L'agent analyse la complexité et crée 1, 2, 3+ sous-intentions selon les besoins réels
@@ -10,13 +10,15 @@ Principe: Décomposition adaptative - L'agent analyse la complexité et crée 1,
 import os
 import json
 from typing import Optional
-from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import ValidationError
 
 from schemas.intent import Intent, SubIntent
 from config import settings
+
+from langchain_core.exceptions import OutputParserException
 
 
 class IntentInterpreterAgent:
@@ -50,23 +52,37 @@ class IntentInterpreterAgent:
     
     def __init__(self, llm_model: Optional[str] = None, temperature: float = 0.0):
         """
-        Initialise l'agent avec Llama 3.3 70B via Ollama (GRATUIT, LOCAL)
+        Initialise l'agent avec Llama 3.3 70B via API externe (Groq/Together/etc.)
         
         Args:
-            llm_model: Nom du modèle Llama (par défaut "llama3.3:70b")
+            llm_model: Nom du modèle Llama (par défaut depuis settings)
             temperature: Température pour la génération (0 = déterministe)
         """
         self.llm_model = llm_model or settings.llm_model
         self.temperature = temperature
         
-        # Initialiser Llama 3.2 via Ollama (gratuit, local)
-        self.llm = ChatOllama(
+        # Auto-détection de la base_url selon le provider
+        provider_urls = {
+            "groq": "https://api.groq.com/openai/v1",
+            "together": "https://api.together.xyz/v1",
+            "fireworks": "https://api.fireworks.ai/inference/v1",
+            "replicate": "https://openai-proxy.replicate.com/v1"
+        }
+        
+        base_url = settings.llm_base_url or provider_urls.get(settings.llm_provider.lower())
+        
+        if not base_url:
+            raise ValueError(f"Provider '{settings.llm_provider}' non supporté. Options: {list(provider_urls.keys())}")
+        
+        # Initialiser Llama 3.3 70B via API
+        self.llm = ChatOpenAI(
+            base_url=base_url,
+            api_key=settings.llm_api_key,
             model=self.llm_model,
-            temperature=self.temperature,
-            base_url=settings.ollama_base_url
+            temperature=self.temperature
         )
         
-        print(f"✅ Llama initialisé: {self.llm_model} @ {settings.ollama_base_url}")
+        print(f"✅ Llama 3.3 70B initialisé via {settings.llm_provider.upper()}: {self.llm_model}")
         
         # Créer le prompt système
         self.prompt = self._create_prompt()
@@ -78,136 +94,147 @@ class IntentInterpreterAgent:
         """Crée le prompt système pour l'extraction d'intentions"""
         
         system_message = """
-Tu es un expert en analyse d'intentions. Ton rôle est d'analyser des requêtes utilisateur en langage naturel 
-et de les structurer en intentions avec leurs sous-intentions.
+You are a JSON generator. Output ONLY valid JSON, no explanations.
 
-PRINCIPE FONDAMENTAL:
-- Analyse la COMPLEXITÉ réelle de la requête
-- Décompose en sous-intentions SEULEMENT si c'est pertinent
-- Une intention simple = 1 sous-intention
-- Une intention complexe = plusieurs sous-intentions (2, 3, 4+)
+ABSOLUTE PROHIBITIONS (DO NOT VIOLATE):
+- NEVER invent numeric values (latency in ms, storage in GB, CPU count, etc.) if user didn't specify numbers
+- NEVER invent framework/technology names (React, FastAPI, MongoDB, etc.) if user didn't name them
+- NEVER deduce impossible values like "0ms" latency or "infinite" bandwidth
+- IGNORE non-technical context (bakery, croissants, morning traffic = IRRELEVANT, skip them)
 
-RÈGLES D'EXTRACTION:
+CRITICAL RULES:
+1. Extract ONLY information explicitly mentioned in the query
+2. Vague terms like "fast", "scalable", "highly available" → use booleans (high_performance: true)
+3. Location/city → use "location" field at Intent level (NOT a sub_intent)
+4. QoS constraints ONLY if numeric values stated → use "qos" field at Intent level
+5. Create 1 sub-intent for simple requests, multiple for complex ones
 
-1. **Identifier le type de service global**
-   - Déterminer s'il s'agit d'un service composite (multiple aspects) ou simple (un seul aspect)
-   - Générer un intent_id unique et descriptif
+SUB-INTENT DOMAINS (Physical or logical components):
+- Infrastructure: compute, storage, network, database, cache
+- Application: frontend, backend, api, microservice
+- Connectivity: 5G, fiber, vpn, cdn
+- IoT: sensors, gateway, analytics
+- AI/ML: training, inference, pipeline
 
-2. **Décomposer intelligemment en sous-intentions**
-   
-   POUR CHAQUE ASPECT/DOMAINE DISTINCT de la requête :
-   - Si la requête mentionne UN SEUL aspect → créer 1 sous-intention
-   - Si la requête mentionne PLUSIEURS aspects → créer autant de sous-intentions que nécessaire
-   
-   Chaque sous-intention contient:
-   - domain: nom du domaine/aspect (ex: "compute", "storage", "network", "database", etc.)
-   - requirements: dictionnaire des exigences spécifiques
-   
-   Exemples de domaines (adaptez selon le contexte):
-   - Infrastructure: "compute", "storage", "network", "edge", "cloud"
-   - Application: "frontend", "backend", "database", "cache", "api"
-   - Réseau: "connectivity", "bandwidth", "ran", "transport", "security"
-   - IoT: "sensors", "gateway", "processing", "analytics"
-   - IA/ML: "training", "inference", "data_pipeline"
-   - Autre: tout domaine pertinent selon la requête
+COMPONENT ATTRIBUTES (Place these INSIDE the specific domain they apply to):
+- Quality attributes: performance, scalability, availability (use booleans)
 
-3. **Extraire les contraintes globales**
-   - Identifier les contraintes transversales (localisation, latence, disponibilité, etc.)
-   - Les placer dans "qos" si elles s'appliquent à l'ensemble du service
+OUTPUT FORMAT:
+{{"intent_id": "...", "type": "simple_service|composite_service", "sub_intents": [...], "location": "city|null", "qos": {{}}|null}}
 
-DIRECTIVE IMPORTANTE:
-- NE PAS inventer des sous-intentions si elles ne sont pas dans la requête
-- NE PAS décomposer artificiellement une intention simple
-- Rester fidèle à ce que demande l'utilisateur
+❌ WRONG EXAMPLES:
+"Let me analyze... {{json}}"
+Query: "fast backend" → {{"framework": "FastAPI"}} ❌ (invented framework)
+Query: "zero downtime" → {{"max_latency": "0ms"}} ❌ (impossible value)
 
-CONTRAINTES TECHNIQUES STRICTES:
-- Retourne UNIQUEMENT un objet JSON valide, RIEN d'autre
-- PAS de texte avant ou après le JSON
-- PAS d'explication, PAS de commentaire
-- JUSTE le JSON brut
-- Utilise des types appropriés: integer pour nombres, string pour mesures avec unités
-- Sois créatif dans le choix des domaines selon le contexte réel
+✅ CORRECT EXAMPLES:
+Query: "fast backend" → {{"high_performance": true}} ✅ (boolean for vague term)
+Query: "zero downtime" → {{"high_availability": true}} ✅ (boolean)
+Query: "backend with FastAPI" → {{"framework": "FastAPI"}} ✅ (explicitly stated)
 
-FORMAT DE SORTIE OBLIGATOIRE:
-{{"intent_id": "...", "type": "...", "sub_intents": [...]}}
+EXAMPLES:
 
-EXEMPLES:
-
-Exemple 1 - Intention SIMPLE (1 sous-intention):
-Requête: "I need a PostgreSQL database with 100GB storage"
+Example 1 - SIMPLE (1 sub-intent, no location):
+Query: "I need a database"
 {{
-  "intent_id": "Database_PostgreSQL_001",
+  "intent_id": "Database_001",
   "type": "simple_service",
   "sub_intents": [
     {{
       "domain": "database",
       "requirements": {{
-        "type": "PostgreSQL",
-        "storage": "100GB",
-        "backup": "daily"
+        "type": "relational"
       }}
     }}
-  ]
+  ],
+  "location": null,
+  "qos": null
 }}
 
-Exemple 2 - Intention MOYENNE (2 sous-intentions):
-Requête: "Deploy IoT sensors with analytics dashboard"
-{{
-  "intent_id": "IoT_SmartCity_001",
-  "type": "composite_service",
-  "sub_intents": [
-    {{
-      "domain": "sensors",
-      "requirements": {{
-        "count": 1000,
-        "protocol": "MQTT"
-      }}
-    }},
-    {{
-      "domain": "analytics",
-      "requirements": {{
-        "processing": "real-time",
-        "dashboard": true
-      }}
-    }}
-  ]
-}}
-
-Exemple 3 - Intention COMPLEXE (3 sous-intentions):
-Requête: "XR applications with computing resources, interconnected via high-speed links, and 5G connectivity"
+Example 2 - COMPLEX with LOCATION and QoS (3 sub-intents):
+Query: "XR applications with 5G connectivity in Nice"
 {{
   "intent_id": "XR_Service_Nice_001",
   "type": "composite_service",
   "sub_intents": [
     {{
-      "domain": "compute",
+      "domain": "applications",
       "requirements": {{
-        "cpu": 4,
-        "ram": "2GB",
-        "applications": ["AR_server", "VR_engine"]
-      }}
-    }},
-    {{
-      "domain": "network",
-      "requirements": {{
-        "bandwidth": "5Gbps",
-        "topology": "mesh"
+        "type": "XR"
       }}
     }},
     {{
       "domain": "connectivity",
       "requirements": {{
-        "type": "5G",
-        "max_latency": "5ms"
+        "type": "5G"
       }}
     }}
   ],
-  "qos": {{"max_latency": "5ms"}}
+  "location": "Nice",
+  "qos": null
 }}
 
-Maintenant, analyse la requête utilisateur suivante et décompose-la selon SA VRAIE COMPLEXITÉ (1, 2, 3+ sous-intentions):"""
+Example 3 - WITH specific values from query:
+Query: "Deploy web app with PostgreSQL 32GB RAM, React frontend, FastAPI backend with 8 cores"
+{{
+  "intent_id": "WebApp_Deployment_001",
+  "type": "composite_service",
+  "sub_intents": [
+    {{
+      "domain": "database",
+      "requirements": {{
+        "type": "PostgreSQL",
+        "ram": "32GB"
+      }}
+    }},
+    {{
+      "domain": "frontend",
+      "requirements": {{
+        "framework": "React"
+      }}
+    }},
+    {{
+      "domain": "backend",
+      "requirements": {{
+        "framework": "FastAPI",
+        "cores": 8
+      }}
+    }}
+  ],
+  "location": null,
+  "qos": null
+}}
 
-        user_message = "{user_query}"
+Example 4 - VAGUE terms (use booleans, NOT invented values):
+Query: "Backend setup, super fast, highly scalable, zero downtime"
+{{
+  "intent_id": "Backend_Setup_001",
+  "type": "simple_service",
+  "sub_intents": [
+    {{
+      "domain": "backend",
+      "requirements": {{
+        "high_performance": true,
+        "auto_scaling": true,
+        "high_availability": true
+      }}
+    }}
+  ],
+  "location": null,
+  "qos": null
+}}
+
+YOUR RESPONSE MUST:
+- Start directly with {{
+- End directly with }}
+- Contain ZERO text outside the JSON object
+- Extract ONLY values explicitly stated in query
+- Use "location" field for cities/places (NOT as sub_intent domain)
+- Use booleans for vague quality terms (fast → high_performance: true)
+
+QUERY:"""
+
+        user_message = "{user_query}\n\nJSON:"
         
         return ChatPromptTemplate.from_messages([
             ("system", system_message),
@@ -245,10 +272,15 @@ Maintenant, analyse la requête utilisateur suivante et décompose-la selon SA V
             
             return intent
             
-        except json.JSONDecodeError as e:
+        except OutputParserException as e:
+            # Attrape les erreurs de formatage JSON de LangChain
             raise ValueError(f"Le LLM n'a pas retourné un JSON valide: {e}")
         except ValidationError as e:
+            # Attrape les erreurs de schéma de Pydantic
             raise ValidationError(f"Le JSON généré ne respecte pas le schéma d'intention: {e}")
+        except Exception as e:
+            # Sécurité globale
+            raise RuntimeError(f"Une erreur inattendue s'est produite: {e}")
     
     def interpret_to_dict(self, user_query: str) -> dict:
         """Version qui retourne un dictionnaire au lieu d'un objet Pydantic"""

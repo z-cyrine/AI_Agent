@@ -77,10 +77,11 @@ def test_custom():
     for i, sub in enumerate(intent.sub_intents, 1):
         print(f"\n   [{i}] Domaine: {sub.domain}")
         print(f"       Requirements: {sub.requirements}")
-        if sub.location:
-            print(f"       Location: {sub.location}")
-        if sub.qos:
-            print(f"       QoS: {sub.qos}")
+    
+    if intent.location:
+        print(f"\n🌍 Location globale: {intent.location}")
+    if intent.qos:
+        print(f"⚡ QoS global: {intent.qos}")
     
     print("\n📄 JSON complet:")
     print(intent.model_dump_json(indent=2))

@@ -8,9 +8,11 @@ from typing import Optional
 class Settings(BaseSettings):
     """Configuration de l'application"""
     
-    # LLM Configuration - DeepSeek-R1 8B via Ollama
-    ollama_base_url: str = "http://localhost:11434"
-    llm_model: str = "deepseek-r1:8b"  # DeepSeek-R1 8B (reasoning model)
+    # LLM Configuration - Llama 3.3 70B via API externe
+    llm_provider: str = "groq"  # Options: groq, together, fireworks, replicate
+    llm_api_key: str  # Clé API obligatoire
+    llm_base_url: Optional[str] = None  # Auto-détecté selon provider
+    llm_model: str = "llama-3.3-70b-versatile"  # Llama 3.3 70B
     llm_temperature: float = 0.0
     
     # OpenSlice Configuration
