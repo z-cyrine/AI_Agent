@@ -3,7 +3,6 @@ Agent 1: L'Interpréteur (Intent Planner)
 
 Rôle: Transformer toute requête en langage naturel en intentions structurées (JSON Agnostique)
 Technologie: LLM (Llama 3.3 70B via API) + Pydantic
-Responsable: Cyrine
 
 Principe: Décomposition adaptative - L'agent analyse la complexité et crée 1, 2, 3+ sous-intentions selon les besoins réels
 """

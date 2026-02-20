@@ -3,7 +3,6 @@ Agent 2: Le Sélecteur (Service Broker)
 
 Rôle: Sélection sémantique de services via RAG (Retrieval Augmented Generation)
 Technologie: ChromaDB + sentence-transformers
-Responsable: Cyrine
 """
 import os
 from typing import List, Dict, Any, Optional
