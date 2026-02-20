@@ -5,21 +5,21 @@
 ```
 ai_agent/
 ├── agents/
-│   ├── agent1_interpreter.py  ✅ Agent 1 - Interpréteur (Cyrine)
-│   ├── agent2_selector.py     ✅ Agent 2 - Sélecteur RAG (Cyrine)
-│   ├── agent3_translator.py   📝 Agent 3 - Traducteur TMF641 (Sarra)
-│   └── agent4_validator.py    📝 Agent 4 - Validateur (Sarra)
+│   ├── agent1_interpreter.py  ✅ Agent 1 - Interpréteur
+│   ├── agent2_selector.py     ✅ Agent 2 - Sélecteur RAG
+│   ├── agent3_translator.py   📝 Agent 3 - Traducteur TMF641
+│   └── agent4_validator.py    📝 Agent 4 - Validateur
 ├── schemas/
 │   ├── intent.py              ✅ Schémas Intent (JSON Agnostique)
 │   └── tmf641.py              ✅ Schémas Service Ordering
 ├── mcp/
-│   └── openslice_server.py    📝 Serveur MCP (Ilef)
+│   └── openslice_server.py    📝 Serveur MCP
 ├── scripts/
 │   └── ingest_catalog.py      ✅ Ingestion catalogue OpenSlice
 ├── tests/
 │   └── test_agents.py         ✅ Tests unitaires
 ├── config.py                  ✅ Configuration centralisée
-├── orchestrator.py            📝 Orchestration LangGraph (Ilef)
+├── orchestrator.py            📝 Orchestration LangGraph 
 ├── main.py                    ✅ Pipeline Agents 1 & 2
 ├── requirements.txt           ✅ Dépendances Python
 ├── .env.example               ✅ Template configuration
@@ -57,43 +57,18 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Éditer le fichier `.env` et choisir un LLM:
+Éditer le fichier `.env`:
 
-**Option A - Llama (GRATUIT, recommandé)**:
+**Groq**:
 ```env
-# 1. Installer Ollama: https://ollama.com/download/windows
-# 2. Télécharger Llama: ollama pull llama3.1:70b
-LLM_MODEL=llama3.1:70b
+LLM_PROVIDER=groq
+LLM_API_KEY=gsk_votre_clé_ici  # Créer sur console.groq.com
+LLM_MODEL=llama-3.3-70b-versatile
 ```
 
-**Option B - GPT-4o (payant, excellent)**:
-```env
-OPENAI_API_KEY=sk-proj-...
-LLM_MODEL=gpt-4o
-```
-
-**Option C - Claude (payant, excellent)**:
-```env
-ANTHROPIC_API_KEY=sk-ant-...
-LLM_MODEL=claude-3-5-sonnet-20241022
-```
-
-**Option D - Groq Llama (gratuit, rapide)**:
-```env
-GROQ_API_KEY=gsk_...
-LLM_MODEL=llama-3.1-70b-versatile
-```
-
-📖 **Guide détaillé Llama**: Voir [LLAMA_GUIDE.md](LLAMA_GUIDE.md)
+📖 **Plus de détails**: Voir [API_SETUP.md](API_SETUP.md)
 
 ## 🧪 Tests et Validation
-
-### Test 0: Vérifier Llama (optionnel)
-
-Si vous utilisez Llama:
-```powershell
-python test_llama.py
-```
 
 ### Test 1: Ingestion du catalogue (Agent 2)
 
@@ -117,10 +92,10 @@ python scripts/ingest_catalog.py
 ### Test 2: Agent 1 seul (Interpréteur)
 
 ```powershell
-python -m agents.agent1_interpreter
+python test_quick.py
 ```
 
-✅ **Résultat attendu**: Conversion de la requête XR en intention structurée (JSON Agnostique) avec décomposition par domaine
+✅ **Résultat attendu**: Mode interactif pour tester vos propres requêtes. Conversion en intention structurée (JSON Agnostique) avec décomposition adaptative.
 
 ### Test 3: Agent 2 seul (Sélecteur)
 
@@ -191,7 +166,7 @@ Create a 5G network slice with high throughput and low latency for mobile augmen
 - **Intention complexe** → 2, 3, ou plus selon les besoins réels
 
 **Processus**:
-1. Analyse de la requête avec LLM (GPT-4o/Claude)
+1. Analyse de la requête avec LLM (Llama 3.3 70B via API Groq)
 2. Évaluation de la complexité réelle
 3. Identification automatique des domaines/aspects distincts
 4. Décomposition adaptative (1 à N sous-intentions selon la complexité)

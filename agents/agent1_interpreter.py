@@ -52,27 +52,20 @@ class IntentInterpreterAgent:
     
     def __init__(self, llm_model: Optional[str] = None, temperature: float = 0.0):
         """
-        Initialise l'agent avec Llama 3.3 70B via API externe (Groq/Together/etc.)
+        Initialise l'agent avec Llama 3.3 70B via API Groq
         
         Args:
-            llm_model: Nom du modèle Llama (par défaut depuis settings)
-            temperature: Température pour la génération (0 = déterministe)
+            llm_model: Nom du modèle (défaut: depuis settings.llm_model)
+            temperature: Température pour la génération (défaut: 0)
         """
         self.llm_model = llm_model or settings.llm_model
         self.temperature = temperature
         
-        # Auto-détection de la base_url selon le provider
-        provider_urls = {
-            "groq": "https://api.groq.com/openai/v1",
-            "together": "https://api.together.xyz/v1",
-            "fireworks": "https://api.fireworks.ai/inference/v1",
-            "replicate": "https://openai-proxy.replicate.com/v1"
-        }
+        # Configuration Groq
+        base_url = settings.llm_base_url or "https://api.groq.com/openai/v1"
         
-        base_url = settings.llm_base_url or provider_urls.get(settings.llm_provider.lower())
-        
-        if not base_url:
-            raise ValueError(f"Provider '{settings.llm_provider}' non supporté. Options: {list(provider_urls.keys())}")
+        if settings.llm_provider.lower() != "groq":
+            raise ValueError(f"Seul le provider 'groq' est supporté. Reçu: '{settings.llm_provider}'")
         
         # Initialiser Llama 3.3 70B via API
         self.llm = ChatOpenAI(

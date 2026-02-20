@@ -8,8 +8,8 @@ from typing import Optional
 class Settings(BaseSettings):
     """Configuration de l'application"""
     
-    # LLM Configuration - Llama 3.3 70B via API externe
-    llm_provider: str = "groq"  # Options: groq, together, fireworks, replicate
+    # LLM Configuration - Llama 3.3 70B via API Groq
+    llm_provider: str = "groq"
     llm_api_key: str  # Clé API obligatoire
     llm_base_url: Optional[str] = None  # Auto-détecté selon provider
     llm_model: str = "llama-3.3-70b-versatile"  # Llama 3.3 70B

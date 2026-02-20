@@ -7,10 +7,9 @@ Solution générique de gestion de services à base d'intentions. Décompose tou
 
 ### Agent 1: L'Interpréteur (Intent Planner)
 - **Rôle**: Transforme le langage naturel en intentions structurées (JSON agnostique)
-- **Technologie**: Llama 3.3 8B (via Ollama) + Pydantic
+- **Technologie**: Llama 3.3 70B (via API Groq) + Pydantic
 - **Décomposition**: Adaptative selon complexité (1 sous-intention si simple, 2-3+ si complexe)
 - **Flexibilité**: Fonctionne pour tout type de service (réseau, web, IoT, IA, etc.)
-- **LLM**: Llama 3.3 8B - **GRATUIT, LOCAL, OFFLINE** (8 GB RAM)
 
 ### Agent 2: Le Sélecteur (Service Broker)
 - **Rôle**: Sélection sémantique de services via RAG
@@ -31,42 +30,32 @@ Solution générique de gestion de services à base d'intentions. Décompose tou
 ## Installation
 
 ```bash
-# Créer un environnement virtuel
+# 1. Créer un environnement virtuel
 python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+venv\Scripts\activate  # Windows
 
-# Installer les dépendances
+# 2. Installer les dépendances
 pip install -r requirements.txt
 
-# Installer Ollama et télécharger Llama 3.3 8B
-# Voir INSTALLATION_LLAMA.md pour les instructions détaillées
-ollama pull llama3.3:8b
-
-# Configurer les variables d'environnement
+# 3. Configurer l'API
 cp .env.example .env
-# .env contient déjà: LLM_MODEL=llama3.3:8b (suffisant pour extraction d'intention)
+# Éditer .env et ajouter votre clé API Groq
 ```
 
-## 🤖 LLM: Llama 3.3 8B
+## 🤖 Configuration LLM
 
-**Pourquoi Llama 3.3 8B (et PAS Code Llama) ?**
+**Llama 3.3 70B via API (Groq recommandé)**
 
-✅ **Llama 3.3 8B** - **MEILLEUR CHOIX** pour extraction d'intention:
-- Excellent pour compréhension NL + structured output
-- **Gratuit, local, offline** (aucun coût API)
-- Privacy: données restent sur votre machine
-- **Léger**: Seulement 8 GB RAM requis
-- Qualité largement suffisante pour structured output
+1. **Créer un compte gratuit**: [console.groq.com](https://console.groq.com)
+2. **Générer une clé API** dans "API Keys"
+3. **Configurer `.env`**:
+   ```env
+   LLM_PROVIDER=groq
+   LLM_API_KEY=gsk_votre_clé_ici
+   LLM_MODEL=llama-3.3-70b-versatile
+   ```
 
-❌ **Code Llama** - PAS adapté:
-- Spécialisé pour **générer** du code (autocomplétion, debugging)
-- Moins bon pour **comprendre** du texte NL et extraire des intentions
-
-📝 **Note**: Si vous avez 48+ GB RAM, vous pouvez utiliser `llama3.3:70b` pour une qualité légèrement supérieure.
-
-📖 **Guide complet**: Voir [INSTALLATION_LLAMA.md](INSTALLATION_LLAMA.md)
-
-**Guide détaillé**: Voir [LLAMA_GUIDE.md](LLAMA_GUIDE.md)
+📖 **Guide complet**: Voir [API_SETUP.md](API_SETUP.md) pour plus de détails
 
 ## Utilisation
 
@@ -88,8 +77,10 @@ python main.py --query "Smart city IoT platform with 1000 sensors and real-time 
 # Mode interactif (pour tester vos propres requêtes)
 python main.py --interactive
 
-# 3. Test des agents individuels
-python -m agents.agent1_interpreter
+# 3. Test rapide Agent 1 (mode interactif)
+python test_quick.py
+
+# 4. Test Agent 2 seul
 python -m agents.agent2_selector
 ```
 
