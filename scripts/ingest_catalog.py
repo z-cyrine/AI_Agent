@@ -78,7 +78,7 @@ def fetch_service_specifications(token: str) -> List[Dict[str, Any]]:
     }
     
     try:
-        print(f"📡 Récupération des services depuis: {catalog_url}")
+        print(f"Récupération des services depuis: {catalog_url}")
         response = httpx.get(catalog_url, headers=headers, timeout=60.0)
         response.raise_for_status()
         
@@ -198,7 +198,7 @@ def ingest_catalog(clear_existing: bool = False):
     
     # Effacer la collection si demandé
     if clear_existing:
-        print("🗑️  Suppression de la collection existante...")
+        print("Suppression de la collection existante...")
         agent.client.delete_collection(name=agent.collection_name)
         agent.collection = agent.client.create_collection(
             name=agent.collection_name,

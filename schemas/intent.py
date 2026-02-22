@@ -20,6 +20,10 @@ class SubIntent(BaseModel):
     - Etc.
     """
     domain: str = Field(..., description="Nom du domaine/aspect (ex: 'compute', 'network', 'database')")
+    description: Optional[str] = Field(
+        None,
+        description="Description en langage naturel de ce que ce domaine doit fournir (utilisée pour la recherche sémantique)"
+    )
     requirements: Dict[str, Any] = Field(
         default_factory=dict,
         description="Exigences techniques spécifiques à ce domaine"

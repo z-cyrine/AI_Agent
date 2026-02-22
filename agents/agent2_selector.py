@@ -5,11 +5,13 @@ Rôle: Sélection sémantique de services via RAG (Retrieval Augmented Generatio
 Technologie: ChromaDB + sentence-transformers
 """
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from typing import List, Dict, Any, Optional
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from chromadb.utils import embedding_functions
-from sentence_transformers import SentenceTransformer
 
 from schemas.intent import Intent
 from config import settings
@@ -24,21 +26,6 @@ class ServiceSelectorAgent:
     - Base de données vectorielle: ChromaDB
     - Modèle d'embeddings: sentence-transformers (all-MiniLM-L6-v2)
     - Recherche par similarité cosinus
-    
-    Exemple d'utilisation:
-    ```python
-    # Initialisation
-    agent = ServiceSelectorAgent()
-    
-    # Sélection de services pour une intention
-    intent = Intent(...)
-    results = agent.select_services(intent, top_k=3)
-    
-    for result in results:
-        print(f"Service: {result['name']}")
-        print(f"UUID: {result['id']}")
-        print(f"Score: {result['score']}")
-    ```
     """
     
     def __init__(
@@ -62,11 +49,8 @@ class ServiceSelectorAgent:
         # Créer le répertoire si nécessaire
         os.makedirs(self.persist_directory, exist_ok=True)
         
-        # Initialiser le modèle d'embeddings
+        # Initialiser le modèle d'embeddings (une seule fois, via ChromaDB)
         print(f"📦 Chargement du modèle d'embeddings: {self.embedding_model_name}")
-        self.embedding_model = SentenceTransformer(self.embedding_model_name)
-        
-        # Fonction d'embedding pour ChromaDB
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=self.embedding_model_name
         )
@@ -92,74 +76,99 @@ class ServiceSelectorAgent:
             )
             print(f"✅ Collection '{self.collection_name}' créée (vide)")
     
-    def _intent_to_query(self, intent: Intent) -> str:
+    def _query_chromadb(self, query: str, top_k: int, min_score: float) -> List[Dict[str, Any]]:
+        """Exécute une recherche dans ChromaDB et retourne les résultats formatés."""
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=top_k,
+            include=["metadatas", "documents", "distances"]
+        )
+        services = []
+        if results and results['ids'] and len(results['ids'][0]) > 0:
+            for i in range(len(results['ids'][0])):
+                distance = results['distances'][0][i]
+                score = 1 / (1 + distance)
+                if score < min_score:
+                    continue
+                service = {
+                    "id": results['ids'][0][i],
+                    "score": round(score, 3),
+                    "description": results['documents'][0][i],
+                    "metadata": results['metadatas'][0][i] if results['metadatas'] else {}
+                }
+                if results['metadatas'] and results['metadatas'][0][i]:
+                    service["name"] = results['metadatas'][0][i].get('name', 'Unknown Service')
+                services.append(service)
+        return services
+
+    def _sub_intent_to_query(self, sub_intent, intent: Intent) -> str:
         """
-        Convertit une intention en requête textuelle pour la recherche
-        
-        Args:
-            intent: Intention structurée avec sous-intentions
-            
-        Returns:
-            str: Requête textuelle optimisée pour la recherche sémantique
+        Convertit une sous-intention en requête textuelle ciblée.
+
+        Priorité:
+        1. sub_intent.description (fournie par Agent 1 / LLM) — riche sémantiquement
+        2. Fallback: construction à partir du domain + requirements (si pas de description)
         """
-        query_parts = []
-        
-        # Type de service
-        if intent.type:
-            query_parts.append(intent.type.replace("_", " "))
-        
-        # Localisation globale
-        if intent.location:
-            query_parts.append(f"location: {intent.location}")
-        
-        # QoS global
+        # Cas idéal : Agent 1 a fourni une description en langage naturel
+        if sub_intent.description:
+            query = sub_intent.description
+            # Enrichir avec QoS global si pertinent
+            if intent.qos:
+                for key, value in intent.qos.items():
+                    if "latency" in key.lower():
+                        query += f" low latency {value}"
+            return query
+
+        # Fallback : construction manuelle à partir du domain
+        # (utilisé seulement si Agent 1 ne fournit pas de description)
+        parts = [f"{sub_intent.domain} service"]
+        for key, value in sub_intent.requirements.items():
+            if isinstance(value, list):
+                parts.append(" ".join(str(v).replace("_", " ") for v in value))
+            elif "type" in key.lower() or "network" in key.lower():
+                parts.append(str(value))
+            elif "latency" in key.lower():
+                parts.append(f"low latency {value}")
         if intent.qos:
             for key, value in intent.qos.items():
-                query_parts.append(f"{key}: {value}")
-        
-        # Parcourir les sous-intentions par domaine
-        for sub_intent in intent.sub_intents:
-            # Nom du domaine
-            query_parts.append(f"{sub_intent.domain} domain")
-            
-            # Exigences du domaine
-            for key, value in sub_intent.requirements.items():
-                if isinstance(value, list):
-                    query_parts.append(f"{key}: {', '.join(str(v) for v in value)}")
-                else:
-                    query_parts.append(f"{key}: {value}")
-        
-        # Joindre toutes les parties
-        query = " ".join(query_parts)
-        
-        print(f"🔍 Requête de recherche: {query[:200]}...")
-        return query
-    
+                if "latency" in key.lower():
+                    parts.append(f"low latency {value}")
+        return " ".join(parts)
+
     def select_services(
         self,
         intent: Intent,
-        top_k: int = 5,
+        top_k: int = 3,
         min_score: float = 0.5
     ) -> List[Dict[str, Any]]:
         """
-        Sélectionne les services les plus pertinents pour une intention
-        
+        Sélectionne le meilleur service pour CHAQUE sous-intention.
+
+        Logique :
+        - Récupère top_k candidats par sous-intention (pour avoir des alternatives)
+        - Retourne 1 service par sous-intention (le meilleur non-doublon)
+        - Inclut les candidats alternatifs dans 'alternatives' pour Agent 4 (validateur)
+
         Args:
             intent: Intention structurée avec sous-intentions
-            top_k: Nombre maximum de résultats à retourner
+            top_k: Taille du pool de candidats par sous-intention (défaut: 3)
+                   → 3 est optimal : fallback en cas de doublon, sans surcharger
             min_score: Score de similarité minimum (0-1)
-            
+
         Returns:
-            List[Dict]: Liste des services sélectionnés avec leurs métadonnées
-            
-        Format de retour:
+            List[Dict]: Un service par sous-intention
         [
             {
-                "id": "uuid-service-spec",
+                "id": "uuid",
                 "name": "XR Service Bundle",
-                "description": "...",
+                "domain": "cloud",
                 "score": 0.87,
-                "metadata": {...}
+                "description": "...",
+                "metadata": {...},
+                "alternatives": [  # ← candidats de remplacement pour Agent 4
+                    {"id": "...", "name": "...", "score": 0.71, ...},
+                    ...
+                ]
             },
             ...
         ]
@@ -167,50 +176,38 @@ class ServiceSelectorAgent:
         if self.collection.count() == 0:
             print("⚠️  La collection est vide. Exécutez d'abord le script d'ingestion.")
             return []
-        
-        # Convertir l'intention en requête
-        query = self._intent_to_query(intent)
-        
-        # Recherche dans ChromaDB
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=top_k,
-            include=["metadatas", "documents", "distances"]
-        )
-        
-        # Formater les résultats
+
         services = []
-        
-        if results and results['ids'] and len(results['ids'][0]) > 0:
-            for i in range(len(results['ids'][0])):
-                # ChromaDB retourne des distances (plus proche = plus petit)
-                # Convertir en score de similarité (0-1, plus grand = meilleur)
-                distance = results['distances'][0][i]
-                score = 1 / (1 + distance)  # Normalisation
-                
-                # Filtrer par score minimum
-                if score < min_score:
-                    continue
-                
-                service = {
-                    "id": results['ids'][0][i],
-                    "score": round(score, 3),
-                    "description": results['documents'][0][i],
-                    "metadata": results['metadatas'][0][i] if results['metadatas'] else {}
-                }
-                
-                # Extraire le nom depuis les métadonnées
-                if results['metadatas'] and results['metadatas'][0][i]:
-                    service["name"] = results['metadatas'][0][i].get('name', 'Unknown Service')
-                
-                services.append(service)
-            
-            print(f"✅ {len(services)} services trouvés (score >= {min_score})")
-            for svc in services:
-                print(f"   - {svc['name']} (score: {svc['score']})")
-        else:
-            print("⚠️  Aucun service trouvé")
-        
+        seen_ids = set()  # éviter les doublons entre sous-intentions
+
+        for sub_intent in intent.sub_intents:
+            query = self._sub_intent_to_query(sub_intent, intent)
+            print(f"🔍 [{sub_intent.domain}] Requête: {query[:120]}...")
+
+            candidates = self._query_chromadb(query, top_k=top_k, min_score=min_score)
+
+            # Sélectionner le meilleur candidat non déjà assigné à une autre sous-intention
+            selected = None
+            alternatives = []
+            for candidate in candidates:
+                if candidate["id"] not in seen_ids:
+                    if selected is None:
+                        selected = candidate
+                        seen_ids.add(candidate["id"])
+                    else:
+                        alternatives.append(candidate)  # garder pour Agent 4
+
+            if selected:
+                selected["domain"] = sub_intent.domain
+                selected["constraints"] = sub_intent.requirements  # pour Agent 3 (Traducteur TMF641)
+                selected["alternatives"] = alternatives
+                services.append(selected)
+                alt_info = f" (+{len(alternatives)} alternative(s))" if alternatives else ""
+                print(f"   ✅ Sélectionné: {selected['name']} (score: {selected['score']}){alt_info}")
+            else:
+                print(f"   ⚠️  Aucun service trouvé pour le domaine '{sub_intent.domain}'")
+
+        print(f"\n✅ {len(services)} service(s) sélectionné(s) au total ({len(intent.sub_intents)} sous-intentions)")
         return services
     
     def get_best_service(self, intent: Intent) -> Optional[Dict[str, Any]]:
@@ -248,6 +245,7 @@ def test_agent():
         sub_intents=[
             SubIntent(
                 domain="cloud",
+                description="cloud hosting for augmented reality AR and virtual reality VR applications with extended reality XR capabilities",
                 requirements={
                     "cpu": 4,
                     "ram": "2GB",
@@ -256,6 +254,7 @@ def test_agent():
             ),
             SubIntent(
                 domain="ran",
+                description="5G radio access network with mobile broadband low latency connectivity",
                 requirements={
                     "network_type": "5G",
                     "location": "Nice",
@@ -289,7 +288,7 @@ def test_agent():
     if services:
         print(f"\n✅ {len(services)} service(s) sélectionné(s):\n")
         for i, svc in enumerate(services, 1):
-            print(f"{i}. {svc['name']}")
+            print(f"{i}. [{svc.get('domain', '?').upper()}] {svc['name']}")
             print(f"   UUID: {svc['id']}")
             print(f"   Score: {svc['score']}")
             print(f"   Description: {svc['description'][:100]}...")

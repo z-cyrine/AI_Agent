@@ -111,8 +111,12 @@ SUB-INTENT DOMAINS (Physical or logical components):
 COMPONENT ATTRIBUTES (Place these INSIDE the specific domain they apply to):
 - Quality attributes: performance, scalability, availability (use booleans)
 
+EACH sub_intent MUST include a "description" field: a short natural language sentence describing what this domain needs to provide. This description is used for semantic search and must be rich in meaningful keywords.
+Example: domain="ran" → description="5G radio network with low latency mobile broadband connectivity"
+Example: domain="cloud" → description="cloud compute hosting for augmented reality and virtual reality applications"
+
 OUTPUT FORMAT:
-{{"intent_id": "...", "type": "simple_service|composite_service", "sub_intents": [...], "location": "city|null", "qos": {{}}|null}}
+{{"intent_id": "...", "type": "simple_service|composite_service", "sub_intents": [{{"domain": "...", "description": "...", "requirements": {{...}}}}], "location": "city|null", "qos": {{}}|null}}
 
 ❌ WRONG EXAMPLES:
 "Let me analyze... {{json}}"
@@ -134,6 +138,7 @@ Query: "I need a database"
   "sub_intents": [
     {{
       "domain": "database",
+      "description": "relational database service for persistent data storage",
       "requirements": {{
         "type": "relational"
       }}
@@ -151,12 +156,14 @@ Query: "XR applications with 5G connectivity in Nice"
   "sub_intents": [
     {{
       "domain": "applications",
+      "description": "extended reality XR augmented reality virtual reality application hosting",
       "requirements": {{
         "type": "XR"
       }}
     }},
     {{
       "domain": "connectivity",
+      "description": "5G mobile radio access network with low latency broadband connectivity",
       "requirements": {{
         "type": "5G"
       }}
@@ -174,6 +181,7 @@ Query: "Deploy web app with PostgreSQL 32GB RAM, React frontend, FastAPI backend
   "sub_intents": [
     {{
       "domain": "database",
+      "description": "PostgreSQL relational database with 32GB RAM for web application data persistence",
       "requirements": {{
         "type": "PostgreSQL",
         "ram": "32GB"
@@ -181,12 +189,14 @@ Query: "Deploy web app with PostgreSQL 32GB RAM, React frontend, FastAPI backend
     }},
     {{
       "domain": "frontend",
+      "description": "React web frontend user interface service",
       "requirements": {{
         "framework": "React"
       }}
     }},
     {{
       "domain": "backend",
+      "description": "FastAPI backend REST API service with 8 CPU cores",
       "requirements": {{
         "framework": "FastAPI",
         "cores": 8
@@ -205,6 +215,7 @@ Query: "Backend setup, super fast, highly scalable, zero downtime"
   "sub_intents": [
     {{
       "domain": "backend",
+      "description": "high performance scalable backend service with high availability and zero downtime",
       "requirements": {{
         "high_performance": true,
         "auto_scaling": true,
