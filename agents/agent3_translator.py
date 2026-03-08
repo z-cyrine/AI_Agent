@@ -1,130 +1,101 @@
-"""
-Agent 3: Le Traducteur (TMF641 Mapper)
-
-Rôle: Génération d'ordres de service TMF641 à partir d'intentions structurées
-Technologie: Few-Shot Prompting + LLM
-Responsable: Sarra
-
-TODO: À implémenter par Sarra
-"""
+import json
+import os
+import re
 from typing import List, Dict, Any
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
 from schemas.intent import Intent
+from schemas.tmf641 import ServiceOrder
+from config import settings
+
 class ServiceTranslatorAgent:
     """
-    Agent 3: Traduit une intention structurée (JSON agnostique) en ordre de service TMF641
-    
-    Exemple d'utilisation:
-    ```python
-    agent = ServiceTranslatorAgent()
-    intent = Intent(...)
-    selected_services = [{"id": "uuid-1", "name": "XR Service", ...}]
-    
-    service_order = agent.translate(intent, selected_services)
-    print(service_order.model_dump_json())
-    ```
+    Agent 3: Traduit une intention structurée (Agent 1) et des services 
+    sélectionnés (Agent 2) en un ordre de service TMF641 valide.
     """
-    
+
     def __init__(self):
+        # Initialisation du LLM via la configuration centralisée
+        self.llm = ChatGroq(
+            model_name=settings.llm_model,
+            temperature=0,
+            groq_api_key=settings.llm_api_key
+        )
+
+    def translate(self, intent: Intent, selected_services: List[Dict[str, Any]]) -> ServiceOrder:
         """
-        Initialise l'agent traducteur
+        Génère l'ordre de service TMF641 en utilisant le Few-Shot Prompting.
+        """
         
-        TODO Sarra:
-        - Initialiser le LLM (GPT-4o ou Claude 3.5)
-        - Créer les prompts Few-Shot avec des exemples Intent → TMF641
-        - Préparer les templates de mapping
-        """
-        pass
-    
-    def translate(
-        self,
-        intent: Intent,
-        selected_services: List[Dict[str, Any]]
-    ) -> ServiceOrder:
-        """
-        Traduit une intention et des services sélectionnés en ordre TMF641
-        
-        Args:
-            intent: Intention structurée (JSON agnostique avec sub_intents par domaine)
-            selected_services: Services sélectionnés par l'Agent 2
+        prompt = ChatPromptTemplate.from_template("""
+        Tu es un expert en standards TM Forum (TMF641). 
+        Ta mission est de générer un 'Service Order' JSON pour l'orchestrateur OpenSlice.
+
+        --- CONTEXTE ---
+        INTENTION (ID: {intent_id}): {intent_json}
+        SERVICES SÉLECTIONNÉS: {services_json}
+
+        --- RÈGLES DE MAPPING STRICTES ---
+        1. Action: Toujours "add".
+        2. ExternalId: Utilise l'ID de l'intention ({intent_id}).
+        3. ServiceSpecification: Pour chaque service, utilise l'UUID 'id' fourni.
+        4. Characteristics: Mappe les 'requirements' de l'intention.
+        5. FORMAT DE VALEUR: Chaque caractéristique doit suivre ce format exact :
+           {{"name": "Nom", "value": {{"value": "Valeur"}}}}
+
+        --- EXEMPLE DE STRUCTURE ---
+        {{
+            "externalId": "ID_Exemple",
+            "priority": "normal",
+            "serviceOrderItem": [
+                {{
+                    "id": "1",
+                    "action": "add",
+                    "service": {{
+                        "name": "Nom du Service",
+                        "serviceSpecification": {{ "id": "uuid-service-1" }},
+                        "serviceCharacteristic": [
+                            {{ "name": "param", "value": {{ "value": "valeur" }} }}
+                        ]
+                    }}
+                }}
+            ]
+        }}
+
+        RETOURNE UNIQUEMENT LE JSON PUR. PAS DE TEXTE, PAS D'EXPLICATION.
+        """)
+
+        # Exécution de la chaîne
+        chain = prompt | self.llm
+        response = chain.invoke({
+            "intent_id": intent.intent_id or "intent-001",
+            "intent_json": intent.model_dump_json(),
+            "services_json": json.dumps(selected_services)
+        })
+
+        content = response.content.strip()
+
+        # --- SYSTÈME DE NETTOYAGE ROBUSTE ---
+        # On cherche le premier '{' et le dernier '}' pour extraire le bloc JSON
+        try:
+            start_index = content.find("{")
+            end_index = content.rfind("}") + 1
+            if start_index == -1 or end_index == 0:
+                raise ValueError("L'IA n'a pas retourné de bloc JSON valide (accolades manquantes).")
             
-        Returns:
-            ServiceOrder: Ordre de service TMF641 complet
+            clean_json_str = content[start_index:end_index]
+            raw_json = json.loads(clean_json_str)
             
-        TODO Sarra:
-        1. Créer le prompt avec:
-           - L'intention structurée (en JSON)
-           - Les services sélectionnés avec leurs UUIDs
-           - Des exemples de ServiceOrder TMF641 valides
-        
-        2. Invoquer le LLM avec Few-Shot Prompting
-        
-        3. Parser la réponse JSON
-        
-        4. Créer les ServiceOrderItem pour chaque service
-        
-        5. Mapper les caractéristiques de l'intention vers ServiceCharacteristic
-        
-        6. Retourner un objet ServiceOrder Pydantic
-        """
-        raise NotImplementedError("Agent 3 à implémenter par Sarra")
+            # Conversion en objet Pydantic (vérifie la structure selon schemas/tmf641.py)
+            return ServiceOrder(**raw_json)
 
-
-# Exemple de structure attendue pour Few-Shot Prompting
-EXAMPLE_FEW_SHOT_PROMPT = """
-Tu es un expert en standards TMForum. Ton rôle est de transformer une intention structurée
-(JSON agnostique avec décomposition par domaine) et des services sélectionnés en un ordre de service TMF641 valide.
-
-EXEMPLE 1:
-----------
-Intent structuré:
-{
-  "name": "IoT Platform Deployment",
-  "description": "Deploy IoT platform for smart city",
-  "intentExpectation": [
-    {"expectationType": "delivery", "name": "Platform", "targetValue": "IoT Platform"}
-  ]
-}
-
-Services sélectionnés:
-[
-  {"id": "iot-platform-uuid-001", "name": "IoT Platform Service"}
-]
-
-Service Order TMF641:
-{
-  "externalId": "intent-iot-001",
-  "description": "IoT Platform deployment based on user intent",
-  "priority": "normal",
-  "serviceOrderItem": [
-    {
-      "id": "1",
-      "action": "add",
-      "service": {
-        "name": "IoT Platform Service",
-        "serviceSpecification": {
-          "id": "iot-platform-uuid-001"
-        }
-      }
-    }
-  ]
-}
-
-EXEMPLE 2:
-----------
-[Ajouter d'autres exemples réels découverts lors de l'exploration OpenSlice]
-
-MAINTENANT, traduis cette intention:
-Intent structuré: {intent_json}
-Services sélectionnés: {services_json}
-
-Retourne UNIQUEMENT le JSON du ServiceOrder TMF641, sans commentaire.
-"""
-
+        except json.JSONDecodeError as e:
+            print(f"❌ Erreur de parsing JSON de l'Agent 3.")
+            print(f"Contenu brut reçu de Llama : {content}")
+            raise e
+        except Exception as e:
+            print(f"❌ Erreur imprévue lors de la traduction : {e}")
+            raise e
 
 if __name__ == "__main__":
-    print("⚠️  Agent 3 - À implémenter par Sarra")
-    print("\nFonctionnalités attendues:")
-    print("- Mapping Intent structuré (JSON agnostique) → ServiceOrder TMF641")
-    print("- Utilisation de Few-Shot Prompting")
-    print("- Génération de ServiceOrderItem pour chaque service")
-    print("- Mapping des caractéristiques")
+    print("Agent 3 (Translator) chargé. Prêt pour intégration main.py.")
