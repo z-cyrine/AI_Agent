@@ -101,7 +101,7 @@ ai_agent/
 │   ├── intent.py              # Schémas Intent (Pydantic)
 │   └── tmf641.py              # Schémas ServiceOrder TMF641 (Pydantic)
 ├── mcp/
-│   └── openslice_server.py    # Serveur MCP OpenSlice
+│   └── openslice_client.py    # Client HTTP OpenSlice
 ├── scripts/
 │   └── ingest_catalog.py      # Ingestion catalogue → ChromaDB
 ├── tests/

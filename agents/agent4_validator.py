@@ -1,37 +1,48 @@
 from typing import Tuple, List
 from pydantic import ValidationError
 from schemas.tmf641 import ServiceOrder
+from mcp.mcp_client import MCPClient
+import json
+
 
 class ServiceValidatorAgent:
     """
     Agent 4: Responsable de la Qualité (QA). 
-    Vérifie la conformité du JSON TMF641 avant soumission.
+    Vérifie la conformité du JSON TMF641 avant soumission via le protocole MCP.
     """
+
+    def __init__(self):
+        """Initialise l'agent avec le client MCP"""
+        self.mcp_client = MCPClient(mode="local")
 
     def validate(self, service_order: ServiceOrder) -> Tuple[bool, List[str]]:
         """
-        Valide l'ordre de service.
+        Valide l'ordre de service en utilisant l'outil MCP.
+        
         Returns: (is_valid, list_of_errors)
         """
-        errors = []
-        
         try:
-            # La validation Pydantic de base est déjà faite lors de l'instanciation
-            # On ajoute ici des règles métier spécifiques à OpenSlice
+            # Convertir l'ordre en JSON pour l'outil MCP
+            order_json = service_order.model_dump_json(exclude_none=True)
             
-            # 1. Vérifier la présence d'au moins un item
-            if not service_order.serviceOrderItem or len(service_order.serviceOrderItem) == 0:
-                errors.append("L'ordre de service ne contient aucun item (serviceOrderItem).")
-
-            # 2. Vérifier que chaque item a un UUID de spécification valide
-            for item in service_order.serviceOrderItem:
-                spec_id = item.service.serviceSpecification.id
-                if not spec_id or len(spec_id) < 10:
-                    errors.append(f"UUID de spécification invalide pour l'item {item.id}")
-
-            if not errors:
-                return True, []
-            return False, errors
+            # Appeler l'outil MCP de validation
+            result = self.mcp_client.validate_service_order(order_json)
+            
+            # Extraire les résultats
+            is_valid = result.get("is_valid", False)
+            errors = result.get("errors", [])
+            warnings = result.get("warnings", [])
+            
+            # Logger les avertissements (ne pas bloquer)
+            if warnings:
+                for warning in warnings:
+                    print(f"⚠️  Avertissement: {warning}")
+            
+            return is_valid, errors
 
         except Exception as e:
             return False, [str(e)]
+
+    def close(self):
+        """Ferme la connexion MCP"""
+        self.mcp_client.close()

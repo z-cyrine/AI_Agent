@@ -1,12 +1,15 @@
 """
-Serveur MCP (Model Context Protocol) pour OpenSlice
+Client HTTP pour OpenSlice
+
+Role : Encapsule les appels HTTP vers l'API REST OpenSlice (TMF633, TMF641, TMF638)
+       et l'authentification Keycloak.
 """
 from typing import Optional, Dict, Any
 import httpx
 from config import settings
 
 
-class OpenSliceMCPServer:
+class OpenSliceClient:
 
     def __init__(
         self,
@@ -218,7 +221,7 @@ if __name__ == "__main__":
     print("TEST -- Toutes les fonctions OpenSlice MCP")
     print("=" * 60)
 
-    server = OpenSliceMCPServer()
+    server = OpenSliceClient()
 
     try:
         # Test 1 : Auth

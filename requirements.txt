@@ -2,6 +2,7 @@
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-openai>=0.2.0  # Llama 3.3 70B via API (Groq)
+langchain-groq>=0.1.0    # Support Groq pour Agent 3
 
 # Data Validation
 pydantic>=2.0.0
@@ -15,10 +16,6 @@ sentence-transformers>=2.2.0
 httpx>=0.24.0
 requests>=2.31.0
 
-# MCP Protocol
-mcp>=0.1.0
-fastmcp>=0.1.0
-
 # JSON Schema Validation
 jsonschema>=4.17.0
 
@@ -28,3 +25,4 @@ python-dotenv>=1.0.0
 # Utilities
 tenacity>=8.2.0
 pyyaml>=6.0.0
+tqdm>=4.66.0

@@ -1,246 +1,335 @@
 """
-Orchestrateur LangGraph pour le pipeline complet
+Orchestrateur LangGraph pour le pipeline complet.
 
-Rôle: Orchestrer les 4 agents avec gestion des cycles et erreurs
-Technologie: LangGraph (State Management)
-Responsable: Ilef + équipe
-
-TODO: À implémenter avec Ilef une fois tous les agents prêts
+Role : Orchestrer les 4 agents avec gestion des cycles et erreurs.
+Utilise le protocole MCP pour communiquer avec OpenSlice.
 """
-from typing import TypedDict, Annotated, List, Dict, Any, Optional
+from typing import TypedDict, List, Dict, Any, Optional
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, AIMessage
 
+from agents.agent1_interpreter import IntentInterpreterAgent
+from agents.agent2_selector import ServiceSelectorAgent
+from agents.agent3_translator import ServiceTranslatorAgent
+from agents.agent4_validator import ServiceValidatorAgent
+from mcp.mcp_client import MCPClient
 from schemas.intent import Intent
 from schemas.tmf641 import ServiceOrder
 
 
+# ============================================================
+# ETAT PARTAGE ENTRE TOUS LES NOEUDS
+# ============================================================
+
 class AgentState(TypedDict):
     """
-    État partagé entre tous les agents
-    
-    Cet état circule dans le graphe LangGraph et est mis à jour
-    par chaque agent lors de son exécution.
+    Etat qui circule dans le graphe LangGraph.
+    Chaque noeud lit cet etat et le met a jour avant de le passer au suivant.
     """
-    # Entrée utilisateur
+    # Entree utilisateur
     user_query: str
-    
-    # Agent 1: Intention structurée
+
+    # Agent 1 : intention structuree
     intent: Optional[Intent]
     intent_errors: List[str]
-    
-    # Agent 2: Services sélectionnés
+
+    # Agent 2 : services selectionnes
     selected_services: List[Dict[str, Any]]
     selection_errors: List[str]
-    
-    # Agent 3: Ordre de service
+
+    # Agent 3 : ordre de service TMF641
     service_order: Optional[ServiceOrder]
     translation_errors: List[str]
-    
-    # Agent 4: Validation
+
+    # Agent 4 : validation
     is_valid: bool
     validation_errors: List[str]
     validation_retry_count: int
-    
-    # Résultat final
+
+    # Resultat final
     openslice_response: Optional[Dict[str, Any]]
     final_status: str
 
 
-def agent1_node(state: AgentState) -> AgentState:
+# ============================================================
+# NOEUDS DU GRAPHE
+# ============================================================
+
+def agent1_node(state: AgentState) -> dict:
     """
-    Nœud Agent 1: Interprétation
-    
-    TODO Ilef:
-    - Instancier IntentInterpreterAgent
-    - Appeler agent.interpret(state["user_query"])
-    - Mettre à jour state["intent"]
-    - Capturer les erreurs dans state["intent_errors"]
+    Noeud Agent 1 : Interpretation.
+    Transforme la requete en langage naturel en intention structuree (JSON).
     """
-    raise NotImplementedError("À implémenter avec Ilef")
+    print("\n[Agent 1] Interpretation de la requete...")
+
+    try:
+        agent = IntentInterpreterAgent()
+        intent = agent.interpret(state["user_query"])
+
+        print(f"[Agent 1] Intention generee : {intent.intent_id}")
+        return {
+            "intent": intent,
+            "intent_errors": []
+        }
+
+    except Exception as e:
+        print(f"[Agent 1] Erreur : {e}")
+        return {
+            "intent": None,
+            "intent_errors": [str(e)]
+        }
 
 
-def agent2_node(state: AgentState) -> AgentState:
+def agent2_node(state: AgentState) -> dict:
     """
-    Nœud Agent 2: Sélection
-    
-    TODO Ilef:
-    - Instancier ServiceSelectorAgent
-    - Appeler agent.select_services(state["intent"])
-    - Mettre à jour state["selected_services"]
-    - Capturer les erreurs dans state["selection_errors"]
+    Noeud Agent 2 : Selection de services via RAG.
+    Interroge ChromaDB pour trouver les services correspondant a l'intention.
     """
-    raise NotImplementedError("À implémenter avec Ilef")
+    print("\n[Agent 2] Selection des services...")
+
+    if not state["intent"]:
+        return {
+            "selected_services": [],
+            "selection_errors": ["Aucune intention recue de l'Agent 1"]
+        }
+
+    try:
+        agent = ServiceSelectorAgent()
+        services = agent.select_services(state["intent"])
+
+        print(f"[Agent 2] {len(services)} service(s) selectionne(s)")
+        return {
+            "selected_services": services,
+            "selection_errors": []
+        }
+
+    except Exception as e:
+        print(f"[Agent 2] Erreur : {e}")
+        return {
+            "selected_services": [],
+            "selection_errors": [str(e)]
+        }
 
 
-def agent3_node(state: AgentState) -> AgentState:
+def agent3_node(state: AgentState) -> dict:
     """
-    Nœud Agent 3: Traduction
-    
-    TODO Ilef (avec Sarra):
-    - Instancier ServiceTranslatorAgent
-    - Appeler agent.translate(state["intent"], state["selected_services"])
-    - Mettre à jour state["service_order"]
-    - Capturer les erreurs dans state["translation_errors"]
+    Noeud Agent 3 : Traduction en ordre TMF641.
+    Genere le ServiceOrder a partir de l'intention et des services selectionnes.
+    Appele aussi bien la premiere fois que lors d'un retry apres validation echouee.
     """
-    raise NotImplementedError("À implémenter avec Ilef + Sarra")
+    print("\n[Agent 3] Generation de l'ordre TMF641...")
+
+    if not state["intent"] or not state["selected_services"]:
+        return {
+            "service_order": None,
+            "translation_errors": ["Intention ou services manquants"]
+        }
+
+    try:
+        agent = ServiceTranslatorAgent()
+        service_order = agent.translate(state["intent"], state["selected_services"])
+
+        print(f"[Agent 3] Ordre genere : {service_order.externalId}")
+        return {
+            "service_order": service_order,
+            "translation_errors": []
+        }
+
+    except Exception as e:
+        print(f"[Agent 3] Erreur : {e}")
+        return {
+            "service_order": None,
+            "translation_errors": [str(e)]
+        }
 
 
-def agent4_node(state: AgentState) -> AgentState:
+def agent4_node(state: AgentState) -> dict:
     """
-    Nœud Agent 4: Validation
-    
-    TODO Ilef (avec Sarra):
-    - Instancier ServiceValidatorAgent
-    - Appeler agent.validate(state["service_order"])
-    - Mettre à jour state["is_valid"] et state["validation_errors"]
-    - Incrémenter state["validation_retry_count"]
+    Noeud Agent 4 : Validation de l'ordre TMF641.
+    Verifie la conformite du ServiceOrder avant soumission via MCP.
+    Incremente le compteur de retry a chaque appel.
     """
-    raise NotImplementedError("À implémenter avec Ilef + Sarra")
+    print("\n[Agent 4] Validation de l'ordre...")
 
+    if not state["service_order"]:
+        return {
+            "is_valid": False,
+            "validation_errors": ["Aucun ordre de service a valider"],
+            "validation_retry_count": state["validation_retry_count"] + 1
+        }
+
+    try:
+        agent = ServiceValidatorAgent()
+        is_valid, errors = agent.validate(state["service_order"])
+
+        if is_valid:
+            print("[Agent 4] Validation reussie")
+        else:
+            print(f"[Agent 4] Validation echouee : {errors}")
+
+        return {
+            "is_valid": is_valid,
+            "validation_errors": errors,
+            "validation_retry_count": state["validation_retry_count"] + 1
+        }
+
+    except Exception as e:
+        print(f"[Agent 4] Erreur : {e}")
+        return {
+            "is_valid": False,
+            "validation_errors": [str(e)],
+            "validation_retry_count": state["validation_retry_count"] + 1
+        }
+
+
+def submit_to_openslice(state: AgentState) -> dict:
+    """
+    Noeud final : Soumission de l'ordre a OpenSlice via MCP.
+    Utilise l'outil MCP "submit_service_order" pour assurer une communication standardisee.
+    """
+    print("\n[Submit] Soumission de l'ordre a OpenSlice via MCP...")
+
+    try:
+        mcp_client = MCPClient(mode="local")
+        
+        # Convertir l'ordre en JSON
+        order_json = state["service_order"].model_dump_json(exclude_none=True)
+        
+        # Soumettre via l'outil MCP
+        result = mcp_client.submit_service_order(order_json)
+        mcp_client.close()
+
+        if result.get("status") == "success":
+            order_id = result.get("order_id", "inconnu")
+            print(f"[Submit] Ordre soumis avec succes -- ID : {order_id}")
+            return {
+                "openslice_response": result,
+                "final_status": "submitted"
+            }
+        else:
+            print(f"[Submit] Erreur lors de la soumission : {result.get('message')}")
+            return {
+                "openslice_response": result,
+                "final_status": "submission_failed"
+            }
+
+    except Exception as e:
+        print(f"[Submit] Erreur lors de la soumission : {e}")
+        return {
+            "openslice_response": None,
+            "final_status": "submission_failed"
+        }
+
+
+# ============================================================
+# ROUTAGE CONDITIONNEL
+# ============================================================
 
 def should_retry_translation(state: AgentState) -> str:
     """
-    Fonction de routage: décide si on doit réessayer la traduction
-    
-    Retourne:
-    - "retry" si validation a échoué et retry_count < 3
-    - "submit" si validation OK
-    - "error" si trop de retries
-    
-    TODO Ilef:
-    - Vérifier state["is_valid"]
-    - Vérifier state["validation_retry_count"]
-    - Retourner la prochaine étape
+    Fonction de routage apres l'Agent 4.
+
+    Retourne :
+      - "submit"  : validation OK, on soumet a OpenSlice
+      - "retry"   : validation KO mais retry_count < 3, on repasse par Agent 3
+      - "error"   : trop de retries, on abandonne
     """
     if state["is_valid"]:
         return "submit"
     elif state["validation_retry_count"] < 3:
+        print(f"[Routage] Retry {state['validation_retry_count']}/3 -- Retour a l'Agent 3")
         return "retry"
     else:
+        print("[Routage] Trop de retries -- Abandon")
         return "error"
 
 
-def submit_to_openslice(state: AgentState) -> AgentState:
-    """
-    Nœud final: Soumission à OpenSlice via MCP
-    
-    TODO Ilef:
-    - Utiliser le serveur MCP pour soumettre state["service_order"]
-    - Appeler mcp_client.submit_order(service_order.model_dump())
-    - Mettre à jour state["openslice_response"]
-    - Mettre à jour state["final_status"]
-    """
-    raise NotImplementedError("À implémenter avec Ilef")
+# ============================================================
+# CONSTRUCTION DU GRAPHE
+# ============================================================
 
-
-def create_workflow() -> StateGraph:
+def create_workflow():
     """
-    Crée le graphe LangGraph complet
-    
-    Architecture du graphe:
-    
-    START
-      ↓
-    Agent1 (Interprétation)
-      ↓
-    Agent2 (Sélection)
-      ↓
-    Agent3 (Traduction)
-      ↓
-    Agent4 (Validation)
-      ↓
-    Decision: Valid?
-      ├─ Yes → Submit to OpenSlice → END
-      └─ No → Retry Agent3 (max 3 fois) → Agent4
-              ├─ Success → Submit
-              └─ Failure → ERROR → END
-    
-    TODO Ilef:
-    - Créer le StateGraph avec AgentState
-    - Ajouter les nœuds (agent1_node, agent2_node, etc.)
-    - Ajouter les arêtes (transitions)
-    - Ajouter les arêtes conditionnelles (boucle de validation)
-    - Compiler le graphe
+    Cree et compile le graphe LangGraph complet.
+
+    Flux :
+      START -> Agent1 -> Agent2 -> Agent3 -> Agent4 -> ?
+                                     ^           |
+                                     |    (retry)|
+                                     +-----------+
+                                         (submit) -> OpenSlice (via MCP) -> END
+                                         (error)                         -> END
     """
     workflow = StateGraph(AgentState)
-    
-    # TODO: Ajouter les nœuds
-    # workflow.add_node("agent1", agent1_node)
-    # workflow.add_node("agent2", agent2_node)
-    # workflow.add_node("agent3", agent3_node)
-    # workflow.add_node("agent4", agent4_node)
-    # workflow.add_node("submit", submit_to_openslice)
-    
-    # TODO: Ajouter les arêtes
-    # workflow.set_entry_point("agent1")
-    # workflow.add_edge("agent1", "agent2")
-    # workflow.add_edge("agent2", "agent3")
-    # workflow.add_edge("agent3", "agent4")
-    
-    # TODO: Ajouter la logique de routage conditionnelle
-    # workflow.add_conditional_edges(
-    #     "agent4",
-    #     should_retry_translation,
-    #     {
-    #         "retry": "agent3",  # Boucle de correction
-    #         "submit": "submit", # Validation OK
-    #         "error": END        # Trop d'erreurs
-    #     }
-    # )
-    
-    # workflow.add_edge("submit", END)
-    
-    # return workflow.compile()
-    
-    raise NotImplementedError("À implémenter avec Ilef")
+
+    # Ajout des noeuds
+    workflow.add_node("agent1", agent1_node)
+    workflow.add_node("agent2", agent2_node)
+    workflow.add_node("agent3", agent3_node)
+    workflow.add_node("agent4", agent4_node)
+    workflow.add_node("submit", submit_to_openslice)
+
+    # Flux sequentiel
+    workflow.set_entry_point("agent1")
+    workflow.add_edge("agent1", "agent2")
+    workflow.add_edge("agent2", "agent3")
+    workflow.add_edge("agent3", "agent4")
+
+    # Routage conditionnel apres Agent 4
+    workflow.add_conditional_edges(
+        "agent4",
+        should_retry_translation,
+        {
+            "retry":  "agent3",  # boucle de correction
+            "submit": "submit",  # validation OK
+            "error":  END        # trop de retries
+        }
+    )
+
+    # Fin apres soumission
+    workflow.add_edge("submit", END)
+
+    return workflow.compile()
 
 
-# Exemple d'utilisation du workflow complet
-"""
-TODO Ilef: Une fois tous les agents implémentés:
-
-```python
-from orchestrator import create_workflow, AgentState
-
-# Créer le workflow
-app = create_workflow()
-
-# État initial
-initial_state = AgentState(
-    user_query="I need XR applications with low latency...",
-    intent=None,
-    intent_errors=[],
-    selected_services=[],
-    selection_errors=[],
-    service_order=None,
-    translation_errors=[],
-    is_valid=False,
-    validation_errors=[],
-    validation_retry_count=0,
-    openslice_response=None,
-    final_status="pending"
-)
-
-# Exécuter le pipeline
-result = app.invoke(initial_state)
-
-# Résultat
-print(f"Status: {result['final_status']}")
-if result["openslice_response"]:
-    print(f"Order ID: {result['openslice_response']['id']}")
-```
-"""
-
+# ============================================================
+# TEST DIRECT
+# ============================================================
 
 if __name__ == "__main__":
-    print("⚠️  Orchestrateur LangGraph - À implémenter avec Ilef")
-    print("\nArchitecture du graphe:")
-    print("START → Agent1 → Agent2 → Agent3 → Agent4 → Decision")
-    print("                              ↑         ↓")
-    print("                              └─ Retry ─┘ (si validation échoue)")
-    print("\nFonctionnalités:")
-    print("- Gestion d'état partagé (AgentState)")
-    print("- Flux séquentiel des agents")
-    print("- Boucle de correction entre Agent3 et Agent4")
-    print("- Soumission finale à OpenSlice via MCP")
+    print("=" * 60)
+    print("TEST -- Orchestrateur LangGraph avec MCP")
+    print("=" * 60)
+
+    app = create_workflow()
+
+    initial_state = AgentState(
+        user_query="I need XR applications with 5G connectivity in Nice",
+        intent=None,
+        intent_errors=[],
+        selected_services=[],
+        selection_errors=[],
+        service_order=None,
+        translation_errors=[],
+        is_valid=False,
+        validation_errors=[],
+        validation_retry_count=0,
+        openslice_response=None,
+        final_status="pending"
+    )
+
+    result = app.invoke(initial_state)
+
+    print("\n" + "=" * 60)
+    print("RESULTAT FINAL")
+    print("=" * 60)
+    print(f"Statut         : {result['final_status']}")
+    print(f"Ordre valide   : {result['is_valid']}")
+    print(f"Retries        : {result['validation_retry_count']}")
+
+    if result["openslice_response"]:
+        print(f"Statut MCP     : {result['openslice_response'].get('status')}")
+        if result['openslice_response'].get('status') == 'success':
+            print(f"ID OpenSlice   : {result['openslice_response'].get('order_id')}")
+
+    if result["validation_errors"]:
+        print(f"Erreurs        : {result['validation_errors']}")

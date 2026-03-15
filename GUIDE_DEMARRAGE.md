@@ -13,7 +13,7 @@ ai_agent/
 │   ├── intent.py              ✅ Schémas Intent (JSON Agnostique)
 │   └── tmf641.py              ✅ Schémas Service Ordering
 ├── mcp/
-│   └── openslice_server.py    📝 Serveur MCP
+│   └── openslice_client.py    📝 Client HTTP OpenSlice
 ├── scripts/
 │   └── ingest_catalog.py      ✅ Ingestion catalogue OpenSlice
 ├── tests/
