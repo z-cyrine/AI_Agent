@@ -17,8 +17,10 @@ class Settings(BaseSettings):
     
     # OpenSlice Configuration
     openslice_base_url: str = "http://localhost:13082"
+    openslice_auth_url: str = "http://localhost:8080"   # Keycloak — port séparé
     openslice_username: str = "admin"
     openslice_password: str = "admin"
+    openslice_client_id: str = "osapiWebClientId"
     
     # ChromaDB Configuration
     chroma_persist_dir: str = "./data/chroma_db"

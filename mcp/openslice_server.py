@@ -1,11 +1,5 @@
 """
 Serveur MCP (Model Context Protocol) pour OpenSlice
-
-Rôle: Interface entre les agents et l'API OpenSlice via MCP
-Technologie: FastMCP
-Responsable: Ilef + équipe
-
-TODO: À implémenter avec Ilef
 """
 from typing import Optional, Dict, Any
 import httpx
@@ -13,160 +7,272 @@ from config import settings
 
 
 class OpenSliceMCPServer:
-    """
-    Serveur MCP exposant des tools pour interagir avec OpenSlice
-    
-    Tools disponibles:
-    - get_catalog(): Récupère le catalogue de services (TMF633)
-    - submit_order(service_order): Envoie un ordre de service (TMF641)
-    - get_service_status(order_id): Vérifie le statut d'un ordre
-    - get_service_inventory(): Récupère l'inventaire des services (TMF638)
-    
-    TODO Ilef:
-    - Configurer FastMCP
-    - Implémenter les tools MCP
-    - Gérer l'authentification OpenSlice
-    - Gérer les erreurs et retries
-    """
-    
+
     def __init__(
         self,
         base_url: Optional[str] = None,
+        auth_url: Optional[str] = None,
         username: Optional[str] = None,
-        password: Optional[str] = None
+        password: Optional[str] = None,
+        client_id: Optional[str] = None
     ):
-        """
-        Initialise le serveur MCP
-        
-        Args:
-            base_url: URL de base OpenSlice
-            username: Nom d'utilisateur
-            password: Mot de passe
-        """
-        self.base_url = base_url or settings.openslice_base_url
+        self.base_url = base_url or settings.openslice_base_url   # http://localhost:13082 -> API OpenSlice
+        self.auth_url = auth_url or settings.openslice_auth_url   # http://localhost:8080  -> Keycloak
         self.username = username or settings.openslice_username
         self.password = password or settings.openslice_password
+        self.client_id = client_id or settings.openslice_client_id  # osapiWebClientId
         self.token: Optional[str] = None
-        
-        # Client HTTP
+
         self.client = httpx.Client(timeout=60.0)
-    
+
     def authenticate(self) -> str:
         """
-        Authentifie auprès d'OpenSlice et retourne un token JWT
-        
-        TODO Ilef:
-        - Appeler l'endpoint d'authentification OpenSlice
-        - Stocker le token
-        - Gérer le refresh du token
+        Obtient un token JWT aupres de Keycloak (port 8080).
+        Utilise osapiWebClientId comme client_id car admin-cli n'a pas
+        les droits suffisants pour les operations d'ecriture (POST serviceOrder).
         """
-        raise NotImplementedError("À implémenter avec Ilef")
-    
-    def get_catalog(self) -> Dict[str, Any]:
+        token_url = f"{self.auth_url}/auth/realms/openslice/protocol/openid-connect/token"
+
+        payload = {
+            "username": self.username,
+            "password": self.password,
+            "grant_type": "password",
+            "client_id": self.client_id
+        }
+
+        print(f"Authentification sur: {token_url} (client: {self.client_id})")
+
+        try:
+            response = self.client.post(token_url, data=payload)
+            response.raise_for_status()
+
+            self.token = response.json()["access_token"]
+            print("Authentification reussie -- Token JWT obtenu")
+            return self.token
+
+        except httpx.HTTPStatusError as e:
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            raise
+        except httpx.ConnectError:
+            print(f"Impossible de joindre Keycloak sur {self.auth_url}")
+            print("  -> Verifiez que le container 'keycloak' est demarre")
+            raise
+        except KeyError:
+            print(f"Reponse inattendue: {response.json()}")
+            raise
+
+    def _get_headers(self) -> Dict[str, str]:
+        """Headers HTTP avec token JWT. Authentifie automatiquement si besoin."""
+        if not self.token:
+            self.authenticate()
+        return {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+    def get_catalog(self) -> list:
         """
-        MCP Tool: Récupère le catalogue de services (TMF633)
-        
-        TODO Ilef:
-        - Authentifier si nécessaire
-        - GET /tmf-api/serviceCatalogManagement/v4/serviceSpecification
-        - Retourner la liste des ServiceSpecification
+        Recupere toutes les ServiceSpecifications du catalogue OpenSlice (TMF633).
+
+        Appelle : GET http://localhost:13082/tmf-api/serviceCatalogManagement/v4/serviceSpecification
+        Retourne : liste de ServiceSpecification (nom, description, UUID, caracteristiques...)
         """
-        raise NotImplementedError("À implémenter avec Ilef")
-    
+        url = f"{self.base_url}/tmf-api/serviceCatalogManagement/v4/serviceSpecification"
+
+        print(f"Recuperation du catalogue sur: {url}")
+
+        try:
+            response = self.client.get(url, headers=self._get_headers())
+            response.raise_for_status()
+
+            services = response.json()
+
+            # Parfois OpenSlice encapsule la liste dans un dict
+            if isinstance(services, dict) and "serviceSpecification" in services:
+                services = services["serviceSpecification"]
+
+            print(f"{len(services)} service(s) trouve(s) dans le catalogue")
+            return services
+
+        except httpx.HTTPStatusError as e:
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            raise
+        except Exception as e:
+            print(f"Erreur lors de la recuperation du catalogue: {e}")
+            raise
+
+
     def submit_order(self, service_order: Dict[str, Any]) -> Dict[str, Any]:
         """
-        MCP Tool: Soumet un ordre de service (TMF641)
-        
-        Args:
-            service_order: ServiceOrder TMF641 (en dict/JSON)
-            
-        Returns:
-            Dict: Réponse d'OpenSlice avec l'ID de l'ordre créé
-            
-        TODO Ilef:
-        - Authentifier si nécessaire
-        - POST /tmf-api/serviceOrderingManagement/v4/serviceOrder
-        - Headers: Authorization, Content-Type: application/json
-        - Body: service_order
-        - Retourner la réponse (incluant l'ID de l'ordre)
+        Soumet un ordre de service a OpenSlice (TMF641).
+
+        Note: L'URL correcte est /tmf-api/serviceOrdering/v4/serviceOrder
+        (sans 'Management' dans le path, contrairement au catalogue).
+
+        Appelle : POST http://localhost:13082/tmf-api/serviceOrdering/v4/serviceOrder
+        Retourne : la reponse OpenSlice avec l'ID et le statut de l'ordre cree
         """
-        raise NotImplementedError("À implémenter avec Ilef")
-    
+        url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
+
+        print(f"Soumission de l'ordre sur: {url}")
+
+        try:
+            response = self.client.post(url, headers=self._get_headers(), json=service_order)
+            response.raise_for_status()
+
+            result = response.json()
+            order_id = result.get("id", "inconnu")
+            state = result.get("state", "inconnu")
+
+            print(f"Ordre cree avec succes -- ID: {order_id} | Statut: {state}")
+            return result
+
+        except httpx.HTTPStatusError as e:
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            raise
+        except Exception as e:
+            print(f"Erreur lors de la soumission de l'ordre: {e}")
+            raise
+
     def get_service_status(self, order_id: str) -> Dict[str, Any]:
         """
-        MCP Tool: Récupère le statut d'un ordre de service
-        
-        Args:
-            order_id: ID de l'ordre
-            
-        Returns:
-            Dict: Statut de l'ordre (acknowledged, inProgress, completed, failed, etc.)
-            
-        TODO Ilef:
-        - GET /tmf-api/serviceOrderingManagement/v4/serviceOrder/{order_id}
-        - Extraire le champ "state"
-        - Retourner le statut en format lisible
+        Recupere le statut d'un ordre de service (TMF641).
+
+        Les statuts possibles dans OpenSlice :
+          - ACKNOWLEDGED  : ordre recu, en attente de traitement
+          - INPROGRESS    : en cours de deploiement
+          - COMPLETED     : deploiement termine avec succes
+          - FAILED        : echec du deploiement
+          - PARTIAL       : deploiement partiel
+
+        Appelle : GET /tmf-api/serviceOrdering/v4/serviceOrder/{order_id}
+        Retourne : dict avec 'id', 'state', et les details complets de l'ordre
         """
-        raise NotImplementedError("À implémenter avec Ilef")
-    
-    def get_service_inventory(self) -> Dict[str, Any]:
+        url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder/{order_id}"
+
+        print(f"Recuperation du statut pour l'ordre: {order_id}")
+
+        try:
+            response = self.client.get(url, headers=self._get_headers())
+            response.raise_for_status()
+
+            result = response.json()
+            state = result.get("state", "inconnu")
+
+            print(f"Statut de l'ordre {order_id}: {state}")
+            return {
+                "id": order_id,
+                "state": state,
+                "details": result
+            }
+
+        except httpx.HTTPStatusError as e:
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            raise
+        except Exception as e:
+            print(f"Erreur lors de la recuperation du statut: {e}")
+            raise
+
+    def get_service_inventory(self) -> list:
         """
-        MCP Tool: Récupère l'inventaire des services déployés (TMF638)
-        
-        TODO Ilef:
-        - GET /tmf-api/serviceInventoryManagement/v4/service
-        - Retourner la liste des services déployés
+        Recupere la liste des services deployes (TMF638 - Service Inventory).
+
+        Difference avec get_catalog() :
+          - get_catalog()         -> services DISPONIBLES (ce qu'on peut commander)
+          - get_service_inventory() -> services DEPLOYES  (ce qui tourne actuellement)
+
+        Appelle : GET /tmf-api/serviceInventory/v4/service
+        Retourne : liste des services actifs dans l'inventaire
         """
-        raise NotImplementedError("À implémenter avec Ilef")
-    
+        url = f"{self.base_url}/tmf-api/serviceInventory/v4/service"
+
+        print(f"Recuperation de l'inventaire sur: {url}")
+
+        try:
+            response = self.client.get(url, headers=self._get_headers())
+            response.raise_for_status()
+
+            services = response.json()
+
+            if isinstance(services, dict) and "service" in services:
+                services = services["service"]
+
+            print(f"{len(services)} service(s) actif(s) dans l'inventaire")
+            return services
+
+        except httpx.HTTPStatusError as e:
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            raise
+        except Exception as e:
+            print(f"Erreur lors de la recuperation de l'inventaire: {e}")
+            raise
     def close(self):
-        """Ferme le client HTTP"""
+        """Ferme le client HTTP proprement."""
         self.client.close()
 
 
-# Exemple de configuration FastMCP
-"""
-TODO Ilef: Créer un fichier séparé mcp_server.py avec:
-
-```python
-from fastmcp import FastMCP
-from mcp.openslice_server import OpenSliceMCPServer
-
-# Initialiser FastMCP
-mcp = FastMCP("OpenSlice MCP Server")
-server = OpenSliceMCPServer()
-
-@mcp.tool()
-def get_catalog():
-    '''Récupère le catalogue de services OpenSlice'''
-    return server.get_catalog()
-
-@mcp.tool()
-def submit_order(service_order: dict):
-    '''Soumet un ordre de service à OpenSlice'''
-    return server.submit_order(service_order)
-
-@mcp.tool()
-def get_service_status(order_id: str):
-    '''Récupère le statut d'un ordre de service'''
-    return server.get_service_status(order_id)
-
+# TEST DIRECT
 if __name__ == "__main__":
-    mcp.run()
-```
+    print("=" * 60)
+    print("TEST -- Toutes les fonctions OpenSlice MCP")
+    print("=" * 60)
 
-Lancer le serveur:
-```bash
-python mcp_server.py
-```
-"""
+    server = OpenSliceMCPServer()
 
+    try:
+        # Test 1 : Auth
+        token = server.authenticate()
+        print(f"Token (50 premiers caracteres): {token[:50]}...\n")
 
-if __name__ == "__main__":
-    print("⚠️  Serveur MCP - À implémenter avec Ilef")
-    print("\nTools MCP attendus:")
-    print("- get_catalog(): Récupérer le catalogue TMF633")
-    print("- submit_order(service_order): Envoyer un ordre TMF641")
-    print("- get_service_status(order_id): Vérifier le statut")
-    print("- get_service_inventory(): Récupérer l'inventaire TMF638")
-    print("\nProtocole MCP permettra aux agents d'interagir avec OpenSlice")
+        # Test 2 : Catalogue
+        services = server.get_catalog()
+        print(f"\n{len(services)} service(s) dans le catalogue:")
+        for svc in services:
+            print(f"  - [{svc.get('id', '?')}] {svc.get('name', 'Sans nom')}")
+
+        # Test 3 : Soumission d'un ordre
+        if services:
+            first_service_id = services[0]["id"]
+            first_service_name = services[0].get("name", "Test Service")
+
+            test_order = {
+                "externalId": "test-order-002",
+                "priority": "normal",
+                "serviceOrderItem": [
+                    {
+                        "id": "1",
+                        "action": "add",
+                        "service": {
+                            "name": first_service_name,
+                            "serviceSpecification": {
+                                "id": first_service_id
+                            }
+                        }
+                    }
+                ]
+            }
+
+            print(f"\nSoumission d'un ordre de test pour: {first_service_name}")
+            result = server.submit_order(test_order)
+            order_id = result.get("id")
+            print(f"Ordre cree -- ID: {order_id}")
+
+            # Test 4 : Statut de l'ordre
+            print(f"\nVerification du statut de l'ordre: {order_id}")
+            status = server.get_service_status(order_id)
+            print(f"Statut: {status['state']}")
+
+        # Test 5 : Inventaire
+        print("\nRecuperation de l'inventaire des services deployes:")
+        inventory = server.get_service_inventory()
+        if inventory:
+            for svc in inventory[:3]:
+                print(f"  - [{svc.get('id', '?')}] {svc.get('name', 'Sans nom')} | state: {svc.get('state', '?')}")
+        else:
+            print("  Aucun service deploye pour l'instant (inventaire vide)")
+
+    except Exception as e:
+        print(f"\nEchec: {e}")
+    finally:
+        server.close()
