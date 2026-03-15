@@ -7,76 +7,71 @@ Solution générique de gestion de services à base d'intentions. Décompose tou
 
 ### Agent 1: L'Interpréteur (Intent Planner)
 - **Rôle**: Transforme le langage naturel en intentions structurées (JSON agnostique)
-- **Technologie**: Llama 3.3 8B (via Ollama) + Pydantic
+- **Technologie**: `langchain-openai` (ChatOpenAI) → API Groq + Pydantic
+- **Modèle**: `llama-3.3-70b-versatile` via `https://api.groq.com/openai/v1`
 - **Décomposition**: Adaptative selon complexité (1 sous-intention si simple, 2-3+ si complexe)
 - **Flexibilité**: Fonctionne pour tout type de service (réseau, web, IoT, IA, etc.)
-- **LLM**: Llama 3.3 8B - **GRATUIT, LOCAL, OFFLINE** (8 GB RAM)
 
 ### Agent 2: Le Sélecteur (Service Broker)
 - **Rôle**: Sélection sémantique de services via RAG
-- **Technologie**: ChromaDB + sentence-transformers
-- **Entrée**: Intention structurée
+- **Technologie**: `ChromaDB` + `sentence-transformers` (all-MiniLM-L6-v2)
+- **Entrée**: Intention structurée (sous-intentions avec description)
 - **Sortie**: UUID de ServiceSpecification OpenSlice
 
 ### Agent 3: Le Traducteur (TMF641 Mapper)
 - **Rôle**: Génération d'ordres de service TMF641
-- **Technologie**: Few-Shot Prompting
-- **Entrée**: UUID + Contraintes
+- **Technologie**: `langchain-groq` (ChatGroq) — Few-Shot Prompting
+- **Modèle**: `llama-3.3-70b-versatile` via API Groq
+- **Entrée**: Intention structurée + services sélectionnés (UUID + métadonnées)
 - **Sortie**: ServiceOrder TMF641 (JSON)
 
 ### Agent 4: Le Validateur (Quality Assurance)
-- **Rôle**: Validation JSON TMF641
-- **Technologie**: jsonschema + Pydantic
+- **Rôle**: Validation de l'ordre de service TMF641 avant soumission
+- **Technologie**: `Pydantic` + règles métier OpenSlice
+- **Vérifications**: Présence des items, validité des UUIDs de ServiceSpecification
 
 ## Installation
 
 ```bash
-# Créer un environnement virtuel
+# 1. Créer un environnement virtuel
 python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 
-# Installer les dépendances
+# 2. Installer les dépendances
 pip install -r requirements.txt
 
-# Installer Ollama et télécharger Llama 3.3 8B
-# Voir INSTALLATION_LLAMA.md pour les instructions détaillées
-ollama pull llama3.3:8b
-
-# Configurer les variables d'environnement
+# 3. Configurer les variables d'environnement
 cp .env.example .env
-# .env contient déjà: LLM_MODEL=llama3.3:8b (suffisant pour extraction d'intention)
+# Éditer .env et renseigner votre clé API Groq
 ```
 
-## 🤖 LLM: Llama 3.3 8B
+## 🔑 Configuration LLM — API Groq
 
-**Pourquoi Llama 3.3 8B (et PAS Code Llama) ?**
+Les agents 1 et 3 utilisent **Llama 3.3 70B** via l'API Groq (gratuite).
 
-✅ **Llama 3.3 8B** - **MEILLEUR CHOIX** pour extraction d'intention:
-- Excellent pour compréhension NL + structured output
-- **Gratuit, local, offline** (aucun coût API)
-- Privacy: données restent sur votre machine
-- **Léger**: Seulement 8 GB RAM requis
-- Qualité largement suffisante pour structured output
+### Étapes
 
-❌ **Code Llama** - PAS adapté:
-- Spécialisé pour **générer** du code (autocomplétion, debugging)
-- Moins bon pour **comprendre** du texte NL et extraire des intentions
+1. **Créer un compte** sur [console.groq.com](https://console.groq.com)
+2. **Générer une clé API** dans la section "API Keys"
+3. **Configurer `.env`** :
+   ```env
+   LLM_PROVIDER=groq
+   LLM_API_KEY=gsk_votre_clé_ici
+   LLM_MODEL=llama-3.3-70b-versatile
+   ```
 
-📝 **Note**: Si vous avez 48+ GB RAM, vous pouvez utiliser `llama3.3:70b` pour une qualité légèrement supérieure.
-
-📖 **Guide complet**: Voir [INSTALLATION_LLAMA.md](INSTALLATION_LLAMA.md)
-
-**Guide détaillé**: Voir [LLAMA_GUIDE.md](LLAMA_GUIDE.md)
+📖 **Guide détaillé** : Voir [API_SETUP.md](API_SETUP.md)
 
 ## Utilisation
 
 ```bash
-# 1. Ingestion du catalogue OpenSlice
+# 1. Ingestion du catalogue OpenSlice dans ChromaDB
 python scripts/ingest_catalog.py
 
-# 2. Exemples d'exécution avec différents types de requêtes
+# 2. Lancer le pipeline complet avec une requête
 
-# Infrastructure réseau
+# Infrastructure réseau 5G
 python main.py --query "I need XR applications with 5G connectivity in Nice"
 
 # Application web
@@ -85,10 +80,10 @@ python main.py --query "Deploy an e-commerce platform with React frontend and Po
 # Plateforme IoT
 python main.py --query "Smart city IoT platform with 1000 sensors and real-time analytics"
 
-# Mode interactif (pour tester vos propres requêtes)
+# Mode interactif
 python main.py --interactive
 
-# 3. Test des agents individuels
+# 3. Tester les agents individuellement
 python -m agents.agent1_interpreter
 python -m agents.agent2_selector
 ```
@@ -98,29 +93,61 @@ python -m agents.agent2_selector
 ```
 ai_agent/
 ├── agents/
-│   ├── agent1_interpreter.py  # Agent 1
-│   ├── agent2_selector.py     # Agent 2
-│   ├── agent3_translator.py   # Agent 3
-│   └── agent4_validator.py    # Agent 4
+│   ├── agent1_interpreter.py  # Agent 1 — LangChain + Groq API
+│   ├── agent2_selector.py     # Agent 2 — ChromaDB + sentence-transformers
+│   ├── agent3_translator.py   # Agent 3 — LangChain Groq + Few-Shot
+│   └── agent4_validator.py    # Agent 4 — Pydantic QA
 ├── schemas/
-│   ├── intent.py              # Schémas Intent (JSON Agnostique)
-│   └── tmf641.py              # Schémas Service Order TMF641
+│   ├── intent.py              # Schémas Intent (Pydantic)
+│   └── tmf641.py              # Schémas ServiceOrder TMF641 (Pydantic)
 ├── mcp/
-│   └── openslice_server.py    # Serveur MCP
+│   └── openslice_server.py    # Serveur MCP OpenSlice
 ├── scripts/
-│   └── ingest_catalog.py      # Ingestion catalogue
-├── orchestrator.py            # LangGraph orchestration
-├── config.py                  # Configuration
-└── main.py                    # Point d'entrée
+│   └── ingest_catalog.py      # Ingestion catalogue → ChromaDB
+├── tests/
+│   └── test_agent1.py         # Tests Agent 1
+├── orchestrator.py            # Orchestration LangGraph
+├── config.py                  # Configuration centralisée (pydantic-settings)
+├── main.py                    # Point d'entrée
+└── requirements.txt
 ```
 
 ## Pipeline
 
 ```
-Langage Naturel → Agent 1 (Structuration adaptative) → Agent 2 (UUID) → Agent 3 (TMF641) → Agent 4 (Validation) → OpenSlice
+Langage Naturel
+     │
+     ▼
+Agent 1 — Intent Planner     (ChatOpenAI → Groq API → llama-3.3-70b)
+     │ Intention structurée (JSON)
+     ▼
+Agent 2 — Service Broker     (ChromaDB + sentence-transformers)
+     │ UUID(s) ServiceSpecification
+     ▼
+Agent 3 — TMF641 Mapper      (ChatGroq → Groq API → llama-3.3-70b)
+     │ ServiceOrder TMF641 (JSON)
+     ▼
+Agent 4 — Quality Assurance  (Pydantic)
+     │ Ordre validé
+     ▼
+OpenSlice
 ```
 
+## Stack Technique
+
+| Composant | Technologie |
+|---|---|
+| LLM Agent 1 | `langchain-openai` → API Groq (`llama-3.3-70b-versatile`) |
+| LLM Agent 3 | `langchain-groq` → API Groq (`llama-3.3-70b-versatile`) |
+| Vector DB | `ChromaDB` |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
+| Validation | `Pydantic v2` + `pydantic-settings` |
+| Orchestration | `LangGraph` |
+| Protocole MCP | `fastmcp` |
+| Standards | TMF641 (Service Ordering), TMF633 (Service Catalog) |
+
 ## Références
-- TMF641: Service Ordering Management API
-- TMF633: Service Catalog Management API
-- Format d'intention: JSON agnostique avec décomposition par domaine/aspect
+- [TMF641 — Service Ordering Management API](https://www.tmforum.org/resources/standard/tmf641-service-ordering-management-api-user-guide-v4-0/)
+- [TMF633 — Service Catalog Management API](https://www.tmforum.org/resources/standard/tmf633-service-catalog-management-api-user-guide-v4-0/)
+- [Groq Console](https://console.groq.com)
+- [OpenSlice](https://openslice.io)
