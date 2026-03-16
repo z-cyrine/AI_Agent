@@ -45,6 +45,11 @@ class AgentState(TypedDict):
     validation_errors: List[str]
     validation_retry_count: int
 
+    # Confirmation utilisateur (NEW)
+    user_approved: bool              # True = accepté, False = rejeté
+    user_wants_to_retry: bool        # True = recommencer, False = arrêt
+    user_retry_count: int            # Compte les reformulations (max 3)
+
     # Resultat final
     openslice_response: Optional[Dict[str, Any]]
     final_status: str
@@ -220,6 +225,228 @@ def submit_to_openslice(state: AgentState) -> dict:
         }
 
 
+def user_confirmation_node(state: AgentState) -> dict:
+    """
+    Noeud 5 : Confirmation utilisateur avec 3 options
+    - y : accepter et soumettre
+    - n : rejeter et arrêter
+    - r : rejeter et recommencer avec une nouvelle requête
+    """
+    print("\n[USER CONFIRMATION] Vérification de l'ordre avant soumission...")
+    
+    if not state["service_order"]:
+        return {
+            "user_approved": False,
+            "user_wants_to_retry": False,
+            "user_retry_count": state["user_retry_count"]
+        }
+    
+    order = state["service_order"]
+    
+    # Afficher le résumé
+    print("\n" + "="*80)
+    print("📋 RÉSUMÉ DÉTAILLÉ DE L'ORDRE À SOUMETTRE")
+    print("="*80)
+    print(f"\n🆔 ID Externe          : {order.externalId}")
+    print(f"📊 Nombre d'items      : {len(order.serviceOrderItem)}")
+    print(f"⚙️  Priorité            : {order.priority}")
+    print(f"📝 Description          : {order.description or 'N/A'}")
+    
+    # Afficher l'intention source si disponible
+    if state["intent"]:
+        print(f"\n🎯 INTENTION SOURCE:")
+        print(f"   ID: {state['intent'].intent_id}")
+        print(f"   Type: {state['intent'].type}")
+        if state['intent'].location:
+            print(f"   Localisation: {state['intent'].location}")
+        if state['intent'].qos:
+            print(f"   QoS: {state['intent'].qos}")
+    
+    print(f"\n📦 SERVICES À COMMANDER:")
+    print("-" * 80)
+    
+    for i, item in enumerate(order.serviceOrderItem, 1):
+        service = item.service
+        spec_id = service.serviceSpecification.id if service.serviceSpecification else "N/A"
+        
+        print(f"\n  {i}. {service.name or 'Service sans nom'}")
+        print(f"     ├─ Action: {item.action}")
+        print(f"     ├─ Quantity: {item.quantity}")
+        print(f"     ├─ ServiceSpec ID: {spec_id}")
+        
+        # Afficher les caractéristiques si disponibles
+        if service.serviceCharacteristic:
+            print(f"     └─ Caractéristiques:")
+            for char in service.serviceCharacteristic:
+                char_name = char.name
+                char_value = char.value
+                
+                # Afficher la valeur proprement (gérer les dicts imbriqués)
+                if isinstance(char_value, dict) and 'value' in char_value:
+                    char_value = char_value['value']
+                
+                print(f"        • {char_name}: {char_value}")
+        else:
+            print(f"     └─ Caractéristiques: Aucune")
+    
+    print("\n" + "="*80)
+    print("\nOptions:")
+    print("  (y) Accepter et soumettre l'ordre")
+    print("  (n) Rejeter et arrêter le pipeline")
+    print("  (r) Rejeter et recommencer avec une nouvelle requête")
+    print("="*80)
+    
+    # Demander la confirmation
+    while True:
+        try:
+            response = input("\n✅ Que voulez-vous faire ? (y/n/r) : ").strip().lower()
+            
+            if response in ['y', 'yes', 'oui']:
+                print("[USER CONFIRMATION] ✅ Ordre accepté - Passage à la soumission")
+                return {
+                    "user_approved": True,
+                    "user_wants_to_retry": False,
+                    "user_retry_count": state["user_retry_count"]
+                }
+            
+            elif response in ['n', 'no', 'non']:
+                print("[USER CONFIRMATION] ❌ Ordre rejeté - Arrêt du pipeline")
+                return {
+                    "user_approved": False,
+                    "user_wants_to_retry": False,
+                    "user_retry_count": state["user_retry_count"]
+                }
+            
+            elif response in ['r', 'retry', 'recommencer']:
+                print("[USER CONFIRMATION] 🔄 Recommençons avec une nouvelle requête")
+                return {
+                    "user_approved": False,
+                    "user_wants_to_retry": True,
+                    "user_retry_count": state["user_retry_count"] + 1
+                }
+            
+            else:
+                print("⚠️  Veuillez répondre par 'y', 'n' ou 'r'")
+        
+        except KeyboardInterrupt:
+            print("\n[USER CONFIRMATION] ⚠️  Annulation par Ctrl+C")
+            return {
+                "user_approved": False,
+                "user_wants_to_retry": False,
+                "user_retry_count": state["user_retry_count"]
+            }
+        except EOFError:
+            # Mode non-interactif (tests)
+            print("[USER CONFIRMATION] Mode non-interactif: approbation automatique")
+            return {
+                "user_approved": True,
+                "user_wants_to_retry": False,
+                "user_retry_count": state["user_retry_count"]
+            }
+
+
+def user_input_node(state: AgentState) -> dict:
+    """
+    Noeud intermédiaire : Demande une nouvelle requête à l'utilisateur
+    Utilisé quand l'utilisateur choisit "recommencer" (r)
+    
+    Réinitialise tous les champs pour préparer une nouvelle itération
+    """
+    print("\n[USER INPUT] Entrez votre nouvelle requête:")
+    
+    while True:
+        try:
+            new_query = input("\n💬 Nouvelle requête (ou 'quit' pour quitter) : ").strip()
+            
+            if new_query.lower() in ['quit', 'exit', 'q']:
+                print("[USER INPUT] ⛔ Annulation par l'utilisateur")
+                return {
+                    "user_query": state["user_query"],  # Garder l'ancienne requête
+                    "user_wants_to_retry": False,  # Arrêter le pipeline
+                    "user_retry_count": state["user_retry_count"],
+                    # Réinitialiser l'état pour arrêt propre
+                    "intent": None,
+                    "intent_errors": [],
+                    "selected_services": [],
+                    "selection_errors": [],
+                    "service_order": None,
+                    "translation_errors": [],
+                    "is_valid": False,
+                    "validation_errors": [],
+                    "validation_retry_count": 0,
+                    "user_approved": False,
+                    "openslice_response": None,
+                    "final_status": "user_cancelled"
+                }
+            
+            if not new_query:
+                print("⚠️  Veuillez entrer une requête non vide")
+                continue
+            
+            print(f"[USER INPUT] ✅ Nouvelle requête acceptée")
+            print(f"   {new_query[:80]}{'...' if len(new_query) > 80 else ''}")
+            
+            # Retourner la nouvelle requête ET réinitialiser les champs des agents précédents
+            return {
+                "user_query": new_query,  # NOUVELLE requête
+                "user_wants_to_retry": True,
+                "user_retry_count": state["user_retry_count"],
+                # Réinitialiser pour permettre au pipeline de redémarrer
+                "intent": None,
+                "intent_errors": [],
+                "selected_services": [],
+                "selection_errors": [],
+                "service_order": None,
+                "translation_errors": [],
+                "is_valid": False,
+                "validation_errors": [],
+                "validation_retry_count": 0,
+                "user_approved": False,
+                "openslice_response": None,
+                "final_status": "pending"
+            }
+        
+        except KeyboardInterrupt:
+            print("\n[USER INPUT] ⚠️  Annulation par Ctrl+C")
+            return {
+                "user_query": state["user_query"],
+                "user_wants_to_retry": False,
+                "user_retry_count": state["user_retry_count"],
+                "intent": None,
+                "intent_errors": [],
+                "selected_services": [],
+                "selection_errors": [],
+                "service_order": None,
+                "translation_errors": [],
+                "is_valid": False,
+                "validation_errors": [],
+                "validation_retry_count": 0,
+                "user_approved": False,
+                "openslice_response": None,
+                "final_status": "user_cancelled"
+            }
+        except EOFError:
+            # Mode non-interactif
+            print("[USER INPUT] Mode non-interactif: arrêt")
+            return {
+                "user_query": state["user_query"],
+                "user_wants_to_retry": False,
+                "user_retry_count": state["user_retry_count"],
+                "intent": None,
+                "intent_errors": [],
+                "selected_services": [],
+                "selection_errors": [],
+                "service_order": None,
+                "translation_errors": [],
+                "is_valid": False,
+                "validation_errors": [],
+                "validation_retry_count": 0,
+                "user_approved": False,
+                "openslice_response": None,
+                "final_status": "user_cancelled"
+            }
+
+
 # ============================================================
 # ROUTAGE CONDITIONNEL
 # ============================================================
@@ -229,18 +456,39 @@ def should_retry_translation(state: AgentState) -> str:
     Fonction de routage apres l'Agent 4.
 
     Retourne :
-      - "submit"  : validation OK, on soumet a OpenSlice
+      - "confirm" : validation OK, aller à la confirmation utilisateur
       - "retry"   : validation KO mais retry_count < 3, on repasse par Agent 3
       - "error"   : trop de retries, on abandonne
     """
     if state["is_valid"]:
-        return "submit"
+        return "confirm"  # Aller à la confirmation utilisateur
     elif state["validation_retry_count"] < 3:
         print(f"[Routage] Retry {state['validation_retry_count']}/3 -- Retour a l'Agent 3")
         return "retry"
     else:
         print("[Routage] Trop de retries -- Abandon")
         return "error"
+
+
+def should_submit_retry_or_stop(state: AgentState) -> str:
+    """
+    Fonction de routage apres la confirmation utilisateur.
+    
+    Retourne :
+      - "submit"  : utilisateur accepte l'ordre
+      - "retry"   : utilisateur veut recommencer (retour à Agent 1)
+      - "stopped" : utilisateur arrête définitivement
+    """
+    if state["user_approved"]:
+        return "submit"  # Aller au Submit
+    
+    elif state["user_wants_to_retry"] and state["user_retry_count"] < 3:
+        print(f"[Routage] Retry utilisateur {state['user_retry_count']}/3 -- Retour à User Input")
+        return "retry"  # Retour à User Input
+    
+    else:
+        print("[Routage] Pipeline arrêté par l'utilisateur")
+        return "stopped"  # Arrêt définitif
 
 
 # ============================================================
@@ -256,8 +504,11 @@ def create_workflow():
                                      ^           |
                                      |    (retry)|
                                      +-----------+
+                                         (confirm) -> UserConfirmation -> ?
                                          (submit) -> OpenSlice (via MCP) -> END
                                          (error)                         -> END
+                                         (stopped)                       -> END
+                                         (retry)                         -> UserInput -> Agent1
     """
     workflow = StateGraph(AgentState)
 
@@ -267,6 +518,8 @@ def create_workflow():
     workflow.add_node("agent3", agent3_node)
     workflow.add_node("agent4", agent4_node)
     workflow.add_node("submit", submit_to_openslice)
+    workflow.add_node("confirm", user_confirmation_node)
+    workflow.add_node("user_input", user_input_node)
 
     # Flux sequentiel
     workflow.set_entry_point("agent1")
@@ -280,10 +533,24 @@ def create_workflow():
         should_retry_translation,
         {
             "retry":  "agent3",  # boucle de correction
-            "submit": "submit",  # validation OK
+            "confirm": "confirm", # validation OK
             "error":  END        # trop de retries
         }
     )
+
+    # Confirmation utilisateur
+    workflow.add_conditional_edges(
+        "confirm",
+        should_submit_retry_or_stop,
+        {
+            "submit": "submit",  # utilisateur accepte
+            "retry": "user_input",   # utilisateur veut recommencer
+            "stopped": END       # utilisateur arrête
+        }
+    )
+
+    # Flux après User Input
+    workflow.add_edge("user_input", "agent1")
 
     # Fin apres soumission
     workflow.add_edge("submit", END)
@@ -313,6 +580,9 @@ if __name__ == "__main__":
         is_valid=False,
         validation_errors=[],
         validation_retry_count=0,
+        user_approved=False,
+        user_wants_to_retry=False,
+        user_retry_count=0,
         openslice_response=None,
         final_status="pending"
     )

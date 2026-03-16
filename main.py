@@ -77,6 +77,9 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
         is_valid=False,
         validation_errors=[],
         validation_retry_count=0,
+        user_approved=False,
+        user_wants_to_retry=False,
+        user_retry_count=0,
         openslice_response=None,
         final_status="pending"
     )
@@ -172,6 +175,17 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     else:
         print(f"  ⚠️  Pas de réponse OpenSlice")
     
+    # Résultats User Confirmation
+    print("\n[USER CONFIRMATION]")
+    if result['user_approved']:
+        print(f"  ✅ Ordre accepté par l'utilisateur")
+    else:
+        print(f"  ❌ Ordre rejeté par l'utilisateur")
+        if result.get('user_wants_to_retry'):
+            print(f"  🔄 L'utilisateur veut recommencer ({result['user_retry_count']}/3)")
+        else:
+            print(f"  ⛔ L'utilisateur a arrêté le pipeline")
+    
     # Détails si verbose
     if verbose:
         print_section("DÉTAILS COMPLETS (MODE VERBEUX)")
@@ -201,6 +215,15 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     
     if success:
         print("✅ PIPELINE RÉUSSI - ORDRE SOUMIS À OPENSLICE")
+    elif result['final_status'] == 'user_cancelled':
+        print("⛔ PIPELINE ANNULÉ PAR L'UTILISATEUR")
+        print("   - L'utilisateur a choisi de quitter pendant la saisie de la nouvelle requête")
+    elif result['user_wants_to_retry'] and result['user_retry_count'] >= 3:
+        print("⛔ PIPELINE ARRÊTÉ - TROP DE TENTATIVES")
+        print(f"   - Nombre maximum de reformulations atteint ({result['user_retry_count']}/3)")
+    elif result['user_approved'] == False and result['user_wants_to_retry'] == False:
+        print("⛔ PIPELINE ARRÊTÉ - UTILISATEUR A REJETÉ L'ORDRE")
+        print("   - L'utilisateur n'a pas accepté l'ordre généré")
     elif result['is_valid'] and result['service_order']:
         print("⚠️  PIPELINE PARTIELLEMENT RÉUSSI")
         print("   - Ordre généré et valide")
