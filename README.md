@@ -46,6 +46,11 @@ cp .env.example .env
 # Éditer .env et renseigner votre clé API Groq
 ```
 
+
+# Installation de Miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
 ## 🔑 Configuration LLM — API Groq
 
 Les agents 1 et 3 utilisent **Llama 3.3 70B** via l'API Groq (gratuite).
@@ -151,3 +156,4 @@ OpenSlice
 - [TMF633 — Service Catalog Management API](https://www.tmforum.org/resources/standard/tmf633-service-catalog-management-api-user-guide-v4-0/)
 - [Groq Console](https://console.groq.com)
 - [OpenSlice](https://openslice.io)
+
