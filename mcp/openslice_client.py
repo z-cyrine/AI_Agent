@@ -145,6 +145,24 @@ class OpenSliceClient:
         Appelle : POST http://localhost:13082/tmf-api/serviceOrdering/v4/serviceOrder
         Retourne : la reponse OpenSlice avec l'ID et le statut de l'ordre cree
         """
+        # Mode mock : simuler la soumission
+        if self.mock_mode:
+            order_id = f"mock-order-{uuid.uuid4().hex[:8]}"
+            print(f"🔶 [MOCK] Soumission simulée de l'ordre")
+            print(f"✅ [MOCK] Ordre créé -- ID: {order_id} | Statut: ACKNOWLEDGED")
+            
+            # Stocker l'ordre simulé
+            mock_result = {
+                "id": order_id,
+                "state": "ACKNOWLEDGED",
+                "externalId": service_order.get("externalId", "unknown"),
+                "orderDate": datetime.now().isoformat(),
+                "serviceOrderItem": service_order.get("serviceOrderItem", []),
+                "@type": "ServiceOrder"
+            }
+            self._mock_orders[order_id] = mock_result
+            return mock_result
+        
         url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
 
         print(f"Soumission de l'ordre sur: {url}")
@@ -250,9 +268,11 @@ class OpenSliceClient:
         except Exception as e:
             print(f"Erreur lors de la recuperation de l'inventaire: {e}")
             raise
+
     def close(self):
         """Ferme le client HTTP proprement."""
-        self.client.close()
+        if self.client:
+            self.client.close()
 
 
 # TEST DIRECT
