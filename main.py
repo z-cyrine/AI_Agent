@@ -25,7 +25,7 @@ from config import settings
 def print_section(title: str):
     """Affiche un titre de section"""
     print(f"\n{'='*80}")
-    print(f"🎯 {title}")
+    print(f"{title}")
     print(f"{'='*80}")
 
 
@@ -49,7 +49,7 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     """
     print_section("PIPELINE IBN COMPLET - ORCHESTRATEUR LANGGRAPH")
     
-    print(f"\n📝 Requête utilisateur:")
+    print(f"\nRequête utilisateur:")
     print(f"   {user_query[:100]}{'...' if len(user_query) > 100 else ''}")
     
     # ==========================================
@@ -58,9 +58,9 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     print_subsection("Initialisation du Workflow LangGraph")
     try:
         app = create_workflow()
-        print("✅ Workflow LangGraph créé")
+        print("[OK] Workflow LangGraph créé")
     except Exception as e:
-        print(f"❌ Erreur création workflow: {e}")
+        print(f"[ERREUR] Erreur création workflow: {e}")
         return {"error": str(e)}
     
     # ==========================================
@@ -91,7 +91,7 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     try:
         result = app.invoke(initial_state)
     except Exception as e:
-        print(f"❌ Erreur exécution pipeline: {e}")
+        print(f"[ERREUR] Erreur exécution pipeline: {e}")
         import traceback
         traceback.print_exc()
         return {"error": str(e)}
@@ -101,26 +101,26 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     # ==========================================
     print_section("RÉSULTATS DU PIPELINE")
     
-    print("\n📊 RÉSUMÉ EXÉCUTION:")
+    print("\nRÉSUMÉ EXÉCUTION:")
     print(f"  Statut final        : {result['final_status']}")
-    print(f"  Ordre valide        : {'✅ OUI' if result['is_valid'] else '❌ NON'}")
+    print(f"  Ordre valide        : {'OUI' if result['is_valid'] else 'NON'}")
     print(f"  Nombre de retries   : {result['validation_retry_count']}/3")
     
     # Résultats Agent 1
     print("\n[AGENT 1 - INTERPRÉTEUR]")
     if result['intent']:
-        print(f"  ✅ Intention générée: {result['intent'].intent_id}")
+        print(f"  [OK] Intention générée: {result['intent'].intent_id}")
         print(f"     Type: {result['intent'].type}")
         print(f"     Sous-intentions: {len(result['intent'].sub_intents)}")
         if verbose and result['intent'].requirements:
             print(f"     Requirements: {len(result['intent'].requirements)}")
     else:
-        print(f"  ❌ Erreurs: {result['intent_errors']}")
+        print(f"  [ERREUR] Erreurs: {result['intent_errors']}")
     
     # Résultats Agent 2
     print("\n[AGENT 2 - SÉLECTEUR]")
     if result['selected_services']:
-        print(f"  ✅ {len(result['selected_services'])} service(s) sélectionné(s)")
+        print(f"  [OK] {len(result['selected_services'])} service(s) sélectionné(s)")
         for i, svc in enumerate(result['selected_services'][:3], 1):
             name = svc.get('name', 'Unknown')
             score = svc.get('score', 'N/A')
@@ -129,35 +129,35 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
             print(f"     ... et {len(result['selected_services']) - 3} autre(s)")
     else:
         if result['selection_errors']:
-            print(f"  ⚠️  {result['selection_errors'][0]}")
+            print(f"  [AVERTISSEMENT] {result['selection_errors'][0]}")
         else:
-            print(f"  ⚠️  Aucun service sélectionné")
+            print(f"  [AVERTISSEMENT] Aucun service sélectionné")
     
     # Résultats Agent 3
     print("\n[AGENT 3 - TRADUCTEUR]")
     if result['service_order']:
-        print(f"  ✅ Ordre TMF641 généré: {result['service_order'].externalId}")
+        print(f"  [OK] Ordre TMF641 généré: {result['service_order'].externalId}")
         print(f"     Items: {len(result['service_order'].serviceOrderItem)}")
         print(f"     Priority: {result['service_order'].priority}")
     else:
         if result['translation_errors']:
-            print(f"  ❌ Erreurs: {result['translation_errors'][0]}")
+            print(f"  [ERREUR] Erreurs: {result['translation_errors'][0]}")
         else:
-            print(f"  ⚠️  Pas d'ordre généré")
+            print(f"  [AVERTISSEMENT] Pas d'ordre généré")
     
     # Résultats Agent 4 (avec MCP)
     print("\n[AGENT 4 - VALIDATEUR] (via MCP)")
     if result['is_valid']:
-        print(f"  ✅ Validation réussie")
+        print(f"  [OK] Validation réussie")
     else:
         if result['validation_errors']:
-            print(f"  ❌ Erreurs de validation:")
+            print(f"  [ERREUR] Erreurs de validation:")
             for error in result['validation_errors'][:3]:
                 print(f"     - {error}")
             if len(result['validation_errors']) > 3:
                 print(f"     ... et {len(result['validation_errors']) - 3} autre(s)")
         else:
-            print(f"  ⚠️  Pas d'erreur spécifique")
+            print(f"  [AVERTISSEMENT] Pas d'erreur spécifique")
     
     # Résultats Submit (via MCP)
     print("\n[SUBMIT] (via MCP)")
@@ -165,26 +165,26 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
         response = result['openslice_response']
         status = response.get('status', 'unknown')
         if status == 'success':
-            print(f"  ✅ Ordre soumis avec succès")
+            print(f"  [OK] Ordre soumis avec succès")
             print(f"     Order ID: {response.get('order_id', '?')}")
             print(f"     État: {response.get('order_state', '?')}")
         else:
-            print(f"  ⚠️  Statut MCP: {status}")
+            print(f"  [AVERTISSEMENT] Statut MCP: {status}")
             if response.get('message'):
                 print(f"     Message: {response.get('message')}")
     else:
-        print(f"  ⚠️  Pas de réponse OpenSlice")
+        print(f"  [AVERTISSEMENT] Pas de réponse OpenSlice")
     
     # Résultats User Confirmation
     print("\n[USER CONFIRMATION]")
     if result['user_approved']:
-        print(f"  ✅ Ordre accepté par l'utilisateur")
+        print(f"  [OK] Ordre accepté par l'utilisateur")
     else:
-        print(f"  ❌ Ordre rejeté par l'utilisateur")
+        print(f"  [ERREUR] Ordre rejeté par l'utilisateur")
         if result.get('user_wants_to_retry'):
-            print(f"  🔄 L'utilisateur veut recommencer ({result['user_retry_count']}/3)")
+            print(f"  [INFO] L'utilisateur veut recommencer ({result['user_retry_count']}/3)")
         else:
-            print(f"  ⛔ L'utilisateur a arrêté le pipeline")
+            print(f"  [INFO] L'utilisateur a arrêté le pipeline")
     
     # Détails si verbose
     if verbose:
@@ -214,25 +214,25 @@ def run_complete_pipeline(user_query: str, verbose: bool = False) -> dict:
     )
     
     if success:
-        print("✅ PIPELINE RÉUSSI - ORDRE SOUMIS À OPENSLICE")
+        print("[OK] PIPELINE RÉUSSI - ORDRE SOUMIS À OPENSLICE")
     elif result['final_status'] == 'user_cancelled':
-        print("⛔ PIPELINE ANNULÉ PAR L'UTILISATEUR")
+        print("[ANNULE] PIPELINE ANNULÉ PAR L'UTILISATEUR")
         print("   - L'utilisateur a choisi de quitter pendant la saisie de la nouvelle requête")
     elif result['user_wants_to_retry'] and result['user_retry_count'] >= 3:
-        print("⛔ PIPELINE ARRÊTÉ - TROP DE TENTATIVES")
+        print("[ARRETTE] PIPELINE ARRÊTÉ - TROP DE TENTATIVES")
         print(f"   - Nombre maximum de reformulations atteint ({result['user_retry_count']}/3)")
     elif result['user_approved'] == False and result['user_wants_to_retry'] == False:
-        print("⛔ PIPELINE ARRÊTÉ - UTILISATEUR A REJETÉ L'ORDRE")
+        print("[ARRETTE] PIPELINE ARRÊTÉ - UTILISATEUR A REJETÉ L'ORDRE")
         print("   - L'utilisateur n'a pas accepté l'ordre généré")
     elif result['is_valid'] and result['service_order']:
-        print("⚠️  PIPELINE PARTIELLEMENT RÉUSSI")
+        print("[AVERTISSEMENT] PIPELINE PARTIELLEMENT RÉUSSI")
         print("   - Ordre généré et valide")
         print("   - Soumission à OpenSlice échouée (vérifier OpenSlice)")
     elif result['service_order']:
-        print("⚠️  PIPELINE COMPLÉTÉ AVEC AVERTISSEMENTS")
+        print("[AVERTISSEMENT] PIPELINE COMPLÉTÉ AVEC AVERTISSEMENTS")
         print(f"   - Validation échouée ({result['validation_retry_count']} retries)")
     else:
-        print("❌ PIPELINE ÉCHOUÉ")
+        print("[ERREUR] PIPELINE ÉCHOUÉ")
         if result['intent_errors']:
             print(f"   - Erreur Agent 1: {result['intent_errors'][0]}")
         elif result['selection_errors']:
@@ -251,10 +251,10 @@ def interactive_mode():
     
     while True:
         try:
-            user_input = input("\n💬 Votre requête: ").strip()
+            user_input = input("\nVotre requête: ").strip()
             
             if user_input.lower() in ['quit', 'exit', 'q']:
-                print("\n👋 Au revoir!")
+                print("\nAu revoir!")
                 break
             
             if not user_input:
@@ -263,10 +263,10 @@ def interactive_mode():
             run_complete_pipeline(user_input, verbose=False)
             
         except KeyboardInterrupt:
-            print("\n\n👋 Au revoir!")
+            print("\n\nAu revoir!")
             break
         except Exception as e:
-            print(f"\n❌ Erreur: {e}")
+            print(f"\n[ERREUR] Erreur: {e}")
 
 
 def test_complete_application():
@@ -312,10 +312,10 @@ and tolerate a maximum latency of 5 ms."""
     passed = sum(1 for r in results if r['success'])
     total = len(results)
     
-    print(f"\n✅ Tests réussis: {passed}/{total}")
+    print(f"\nTests réussis: {passed}/{total}")
     
     for result in results:
-        status = "✅ PASS" if result['success'] else "❌ FAIL"
+        status = "[OK]" if result['success'] else "[ECHEC]"
         print(f"  {status}: {result['test']}")
     
     print(f"\n{'='*80}\n")
@@ -384,7 +384,7 @@ and tolerate a maximum latency of 5 ms."""
     # Afficher l'aide si aucun argument
     else:
         parser.print_help()
-        print("\n💡 Exemples d'utilisation:")
+        print("\nExemples d'utilisation:")
         print('   python main.py --example')
         print('   python main.py --query "I need a low-latency 5G service"')
         print('   python main.py --interactive')

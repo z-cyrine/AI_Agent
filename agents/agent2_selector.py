@@ -67,14 +67,14 @@ class ServiceSelectorAgent:
                 name=self.collection_name,
                 embedding_function=self.embedding_function
             )
-            print(f"✅ Collection '{self.collection_name}' chargée ({self.collection.count()} services)")
+            print(f" Collection '{self.collection_name}' chargée ({self.collection.count()} services)")
         except Exception:
             self.collection = self.client.create_collection(
                 name=self.collection_name,
                 embedding_function=self.embedding_function,
                 metadata={"description": "OpenSlice Service Catalog"}
             )
-            print(f"✅ Collection '{self.collection_name}' créée (vide)")
+            print(f" Collection '{self.collection_name}' créée (vide)")
     
     def _query_chromadb(self, query: str, top_k: int, min_score: float) -> List[Dict[str, Any]]:
         """Exécute une recherche dans ChromaDB et retourne les résultats formatés."""
@@ -203,11 +203,11 @@ class ServiceSelectorAgent:
                 selected["alternatives"] = alternatives
                 services.append(selected)
                 alt_info = f" (+{len(alternatives)} alternative(s))" if alternatives else ""
-                print(f"   ✅ Sélectionné: {selected['name']} (score: {selected['score']}){alt_info}")
+                print(f"    Sélectionné: {selected['name']} (score: {selected['score']}){alt_info}")
             else:
                 print(f"   ⚠️  Aucun service trouvé pour le domaine '{sub_intent.domain}'")
 
-        print(f"\n✅ {len(services)} service(s) sélectionné(s) au total ({len(intent.sub_intents)} sous-intentions)")
+        print(f"\n {len(services)} service(s) sélectionné(s) au total ({len(intent.sub_intents)} sous-intentions)")
         return services
     
     def get_best_service(self, intent: Intent) -> Optional[Dict[str, Any]]:
@@ -286,7 +286,7 @@ def test_agent():
     services = agent.select_services(intent, top_k=3)
     
     if services:
-        print(f"\n✅ {len(services)} service(s) sélectionné(s):\n")
+        print(f"\n {len(services)} service(s) sélectionné(s):\n")
         for i, svc in enumerate(services, 1):
             print(f"{i}. [{svc.get('domain', '?').upper()}] {svc['name']}")
             print(f"   UUID: {svc['id']}")
@@ -294,7 +294,7 @@ def test_agent():
             print(f"   Description: {svc['description'][:100]}...")
             print()
     else:
-        print("\n⚠️  Aucun service trouvé. La collection est peut-être vide.")
+        print("\n  Aucun service trouvé. La collection est peut-être vide.")
         print("   Exécutez d'abord: python scripts/ingest_catalog.py")
     
     print("="*80)

@@ -232,7 +232,7 @@ def user_confirmation_node(state: AgentState) -> dict:
     - n : rejeter et arrêter
     - r : rejeter et recommencer avec une nouvelle requête
     """
-    print("\n[USER CONFIRMATION] Vérification de l'ordre avant soumission...")
+    print("\n[USER CONFIRMATION] Verification de l'ordre avant soumission...")
     
     if not state["service_order"]:
         return {
@@ -245,16 +245,16 @@ def user_confirmation_node(state: AgentState) -> dict:
     
     # Afficher le résumé
     print("\n" + "="*80)
-    print("📋 RÉSUMÉ DÉTAILLÉ DE L'ORDRE À SOUMETTRE")
+    print("[RESUME DETAILLE DE L'ORDRE A SOUMETTRE]")
     print("="*80)
-    print(f"\n🆔 ID Externe          : {order.externalId}")
-    print(f"📊 Nombre d'items      : {len(order.serviceOrderItem)}")
-    print(f"⚙️  Priorité            : {order.priority}")
-    print(f"📝 Description          : {order.description or 'N/A'}")
+    print(f"\n[ID Externe]          : {order.externalId}")
+    print(f"[Nombre d'items]      : {len(order.serviceOrderItem)}")
+    print(f"[Priorite]            : {order.priority}")
+    print(f"[Description]         : {order.description or 'N/A'}")
     
     # Afficher l'intention source si disponible
     if state["intent"]:
-        print(f"\n🎯 INTENTION SOURCE:")
+        print(f"\n[INTENTION SOURCE]:")
         print(f"   ID: {state['intent'].intent_id}")
         print(f"   Type: {state['intent'].type}")
         if state['intent'].location:
@@ -262,7 +262,7 @@ def user_confirmation_node(state: AgentState) -> dict:
         if state['intent'].qos:
             print(f"   QoS: {state['intent'].qos}")
     
-    print(f"\n📦 SERVICES À COMMANDER:")
+    print(f"\n[SERVICES A COMMANDER]:")
     print("-" * 80)
     
     for i, item in enumerate(order.serviceOrderItem, 1):
@@ -270,13 +270,13 @@ def user_confirmation_node(state: AgentState) -> dict:
         spec_id = service.serviceSpecification.id if service.serviceSpecification else "N/A"
         
         print(f"\n  {i}. {service.name or 'Service sans nom'}")
-        print(f"     ├─ Action: {item.action}")
-        print(f"     ├─ Quantity: {item.quantity}")
-        print(f"     ├─ ServiceSpec ID: {spec_id}")
+        print(f"     |- Action: {item.action}")
+        print(f"     |- Quantity: {item.quantity}")
+        print(f"     |- ServiceSpec ID: {spec_id}")
         
         # Afficher les caractéristiques si disponibles
         if service.serviceCharacteristic:
-            print(f"     └─ Caractéristiques:")
+            print(f"     |-- Caracteristiques:")
             for char in service.serviceCharacteristic:
                 char_name = char.name
                 char_value = char.value
@@ -285,9 +285,9 @@ def user_confirmation_node(state: AgentState) -> dict:
                 if isinstance(char_value, dict) and 'value' in char_value:
                     char_value = char_value['value']
                 
-                print(f"        • {char_name}: {char_value}")
+                print(f"        * {char_name}: {char_value}")
         else:
-            print(f"     └─ Caractéristiques: Aucune")
+            print(f"     |-- Caracteristiques: Aucune")
     
     print("\n" + "="*80)
     print("\nOptions:")
@@ -299,10 +299,10 @@ def user_confirmation_node(state: AgentState) -> dict:
     # Demander la confirmation
     while True:
         try:
-            response = input("\n✅ Que voulez-vous faire ? (y/n/r) : ").strip().lower()
+            response = input("\n[CONFIRMATION] Que voulez-vous faire ? (y/n/r) : ").strip().lower()
             
             if response in ['y', 'yes', 'oui']:
-                print("[USER CONFIRMATION] ✅ Ordre accepté - Passage à la soumission")
+                print("[USER CONFIRMATION] [OK] Ordre accepte - Passage a la soumission")
                 return {
                     "user_approved": True,
                     "user_wants_to_retry": False,
@@ -310,7 +310,7 @@ def user_confirmation_node(state: AgentState) -> dict:
                 }
             
             elif response in ['n', 'no', 'non']:
-                print("[USER CONFIRMATION] ❌ Ordre rejeté - Arrêt du pipeline")
+                print("[USER CONFIRMATION] [ERREUR] Ordre rejete - Arret du pipeline")
                 return {
                     "user_approved": False,
                     "user_wants_to_retry": False,
@@ -318,7 +318,7 @@ def user_confirmation_node(state: AgentState) -> dict:
                 }
             
             elif response in ['r', 'retry', 'recommencer']:
-                print("[USER CONFIRMATION] 🔄 Recommençons avec une nouvelle requête")
+                print("[USER CONFIRMATION] [INFO] Recommençons avec une nouvelle requête")
                 return {
                     "user_approved": False,
                     "user_wants_to_retry": True,
@@ -326,10 +326,10 @@ def user_confirmation_node(state: AgentState) -> dict:
                 }
             
             else:
-                print("⚠️  Veuillez répondre par 'y', 'n' ou 'r'")
+                print("[AVERTISSEMENT] Veuillez repondre par 'y', 'n' ou 'r'")
         
         except KeyboardInterrupt:
-            print("\n[USER CONFIRMATION] ⚠️  Annulation par Ctrl+C")
+            print("\n[USER CONFIRMATION] [AVERTISSEMENT] Annulation par Ctrl+C")
             return {
                 "user_approved": False,
                 "user_wants_to_retry": False,
@@ -356,15 +356,14 @@ def user_input_node(state: AgentState) -> dict:
     
     while True:
         try:
-            new_query = input("\n💬 Nouvelle requête (ou 'quit' pour quitter) : ").strip()
+            new_query = input("\n[ENTREE] Nouvelle requête (ou 'quit' pour quitter) : ").strip()
             
             if new_query.lower() in ['quit', 'exit', 'q']:
-                print("[USER INPUT] ⛔ Annulation par l'utilisateur")
+                print("[USER INPUT] [ARRET] Annulation par l'utilisateur")
                 return {
                     "user_query": state["user_query"],  # Garder l'ancienne requête
                     "user_wants_to_retry": False,  # Arrêter le pipeline
                     "user_retry_count": state["user_retry_count"],
-                    # Réinitialiser l'état pour arrêt propre
                     "intent": None,
                     "intent_errors": [],
                     "selected_services": [],
@@ -380,10 +379,10 @@ def user_input_node(state: AgentState) -> dict:
                 }
             
             if not new_query:
-                print("⚠️  Veuillez entrer une requête non vide")
+                print("[AVERTISSEMENT] Veuillez entrer une requête non vide")
                 continue
             
-            print(f"[USER INPUT] ✅ Nouvelle requête acceptée")
+            print(f"[USER INPUT] [OK] Nouvelle requête acceptée")
             print(f"   {new_query[:80]}{'...' if len(new_query) > 80 else ''}")
             
             # Retourner la nouvelle requête ET réinitialiser les champs des agents précédents
@@ -391,7 +390,6 @@ def user_input_node(state: AgentState) -> dict:
                 "user_query": new_query,  # NOUVELLE requête
                 "user_wants_to_retry": True,
                 "user_retry_count": state["user_retry_count"],
-                # Réinitialiser pour permettre au pipeline de redémarrer
                 "intent": None,
                 "intent_errors": [],
                 "selected_services": [],
@@ -407,7 +405,7 @@ def user_input_node(state: AgentState) -> dict:
             }
         
         except KeyboardInterrupt:
-            print("\n[USER INPUT] ⚠️  Annulation par Ctrl+C")
+            print("\n[USER INPUT] [AVERTISSEMENT] Annulation par Ctrl+C")
             return {
                 "user_query": state["user_query"],
                 "user_wants_to_retry": False,
@@ -427,7 +425,7 @@ def user_input_node(state: AgentState) -> dict:
             }
         except EOFError:
             # Mode non-interactif
-            print("[USER INPUT] Mode non-interactif: arrêt")
+            print("[USER INPUT] Mode non-interactif: arret")
             return {
                 "user_query": state["user_query"],
                 "user_wants_to_retry": False,
@@ -562,44 +560,44 @@ def create_workflow():
 # TEST DIRECT
 # ============================================================
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("TEST -- Orchestrateur LangGraph avec MCP")
-    print("=" * 60)
+# if __name__ == "__main__":
+#     print("=" * 60)
+#     print("TEST -- Orchestrateur LangGraph avec MCP")
+#     print("=" * 60)
 
-    app = create_workflow()
+#     app = create_workflow()
 
-    initial_state = AgentState(
-        user_query="I need XR applications with 5G connectivity in Nice",
-        intent=None,
-        intent_errors=[],
-        selected_services=[],
-        selection_errors=[],
-        service_order=None,
-        translation_errors=[],
-        is_valid=False,
-        validation_errors=[],
-        validation_retry_count=0,
-        user_approved=False,
-        user_wants_to_retry=False,
-        user_retry_count=0,
-        openslice_response=None,
-        final_status="pending"
-    )
+#     initial_state = AgentState(
+#         user_query="I need XR applications with 5G connectivity in Nice",
+#         intent=None,
+#         intent_errors=[],
+#         selected_services=[],
+#         selection_errors=[],
+#         service_order=None,
+#         translation_errors=[],
+#         is_valid=False,
+#         validation_errors=[],
+#         validation_retry_count=0,
+#         user_approved=False,
+#         user_wants_to_retry=False,
+#         user_retry_count=0,
+#         openslice_response=None,
+#         final_status="pending"
+#     )
 
-    result = app.invoke(initial_state)
+#     result = app.invoke(initial_state)
 
-    print("\n" + "=" * 60)
-    print("RESULTAT FINAL")
-    print("=" * 60)
-    print(f"Statut         : {result['final_status']}")
-    print(f"Ordre valide   : {result['is_valid']}")
-    print(f"Retries        : {result['validation_retry_count']}")
+#     print("\n" + "=" * 60)
+#     print("RESULTAT FINAL")
+#     print("=" * 60)
+#     print(f"Statut         : {result['final_status']}")
+#     print(f"Ordre valide   : {result['is_valid']}")
+#     print(f"Retries        : {result['validation_retry_count']}")
 
-    if result["openslice_response"]:
-        print(f"Statut MCP     : {result['openslice_response'].get('status')}")
-        if result['openslice_response'].get('status') == 'success':
-            print(f"ID OpenSlice   : {result['openslice_response'].get('order_id')}")
+#     if result["openslice_response"]:
+#         print(f"Statut MCP     : {result['openslice_response'].get('status')}")
+#         if result['openslice_response'].get('status') == 'success':
+#             print(f"ID OpenSlice   : {result['openslice_response'].get('order_id')}")
 
-    if result["validation_errors"]:
-        print(f"Erreurs        : {result['validation_errors']}")
+#     if result["validation_errors"]:
+#         print(f"Erreurs        : {result['validation_errors']}")

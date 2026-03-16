@@ -74,7 +74,7 @@ class IntentInterpreterAgent:
             temperature=self.temperature
         )
         
-        print(f"✅ Llama 3.3 70B initialisé via {settings.llm_provider.upper()}: {self.llm_model}")
+        print(f" Llama 3.3 70B initialisé via {settings.llm_provider.upper()}: {self.llm_model}")
         
         # Créer le prompt système
         self.prompt = self._create_prompt()
@@ -123,10 +123,10 @@ OUTPUT FORMAT:
 Query: "fast backend" → {{"framework": "FastAPI"}} ❌ (invented framework)
 Query: "zero downtime" → {{"max_latency": "0ms"}} ❌ (impossible value)
 
-✅ CORRECT EXAMPLES:
-Query: "fast backend" → {{"high_performance": true}} ✅ (boolean for vague term)
-Query: "zero downtime" → {{"high_availability": true}} ✅ (boolean)
-Query: "backend with FastAPI" → {{"framework": "FastAPI"}} ✅ (explicitly stated)
+ CORRECT EXAMPLES:
+Query: "fast backend" → {{"high_performance": true}}  (boolean for vague term)
+Query: "zero downtime" → {{"high_availability": true}}  (boolean)
+Query: "backend with FastAPI" → {{"framework": "FastAPI"}}  (explicitly stated)
 
 EXAMPLES:
 
@@ -268,7 +268,7 @@ QUERY:"""
             # Valider avec Pydantic
             intent = Intent(**result)
             
-            print(f"✅ Intention structurée créée: {intent.intent_id or intent.type}")
+            print(f" Intention structurée créée: {intent.intent_id or intent.type}")
             print(f"   - {len(intent.sub_intents)} sous-intention(s) par domaine")
             for sub in intent.sub_intents:
                 print(f"     • {sub.domain}: {len(sub.requirements)} exigence(s)")

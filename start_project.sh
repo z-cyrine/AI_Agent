@@ -26,6 +26,8 @@ conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 pip install mcp fastmcp
 pip install langchain-openai langchain-groq langgraph chromadb \
             sentence-transformers httpx pydantic tqdm flash-mcp
+#tester main.py
+python3 main.py --example 
 
 # 2. Vérification rapide des containers Docker (OpenSlice)
 echo "🔍 Vérification de la connectivité OpenSlice..."
