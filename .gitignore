@@ -35,7 +35,6 @@ Thumbs.db
 *.tmp
 *.temp
 
-# Large installers
+# Large installer files
+*.sh
 Miniconda3-latest-Linux-x86_64.sh
-*.exe
-*.msi
