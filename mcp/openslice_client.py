@@ -17,16 +17,17 @@ class OpenSliceClient:
         auth_url: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        client_id: Optional[str] = None
+        client_id: Optional[str] = None,
+        timeout: float = 60.0
     ):
-        self.base_url = base_url or settings.openslice_base_url   # http://localhost:13082 -> API OpenSlice
-        self.auth_url = auth_url or settings.openslice_auth_url   # http://localhost:8080  -> Keycloak
+        self.base_url = base_url or settings.openslice_base_url
+        self.auth_url = auth_url or settings.openslice_auth_url 
         self.username = username or settings.openslice_username
         self.password = password or settings.openslice_password
-        self.client_id = client_id or settings.openslice_client_id  # osapiWebClientId
+        self.client_id = client_id or settings.openslice_client_id
         self.token: Optional[str] = None
 
-        self.client = httpx.Client(timeout=60.0)
+        self.client = httpx.Client(timeout=timeout)
 
     def authenticate(self) -> str:
         """
@@ -119,23 +120,34 @@ class OpenSliceClient:
         url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
 
         print(f"Soumission de l'ordre sur: {url}")
+        print(f"⏳ En attente de la réponse OpenSlice (timeout: 300 secondes)...")
+
+        # ✅ NE PAS ajouter de dates - laisser OpenSlice les générer
+        # Les dates sont optionnelles et OpenSlice peut les créer automatiquement
 
         try:
-            response = self.client.post(url, headers=self._get_headers(), json=service_order)
+            print(f"Envoi de {len(str(service_order))} caractères...")
+            
+            # ✅ Timeout très long (300s = 5 min) car OpenSlice peut être lent
+            response = self.client.post(url, headers=self._get_headers(), json=service_order, timeout=300.0)
             response.raise_for_status()
 
             result = response.json()
             order_id = result.get("id", "inconnu")
             state = result.get("state", "inconnu")
 
-            print(f"Ordre cree avec succes -- ID: {order_id} | Statut: {state}")
+            print(f"✅ Ordre créé avec succès -- ID: {order_id} | Statut: {state}")
             return result
 
+        except httpx.TimeoutException as e:
+            print(f"⏱️  TIMEOUT: OpenSlice a mis trop de temps à répondre ({e})")
+            print(f"   L'ordre peut quand même être en cours de création côté OpenSlice")
+            raise
         except httpx.HTTPStatusError as e:
-            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
+            print(f"❌ Erreur HTTP {e.response.status_code}: {e.response.text}")
             raise
         except Exception as e:
-            print(f"Erreur lors de la soumission de l'ordre: {e}")
+            print(f"❌ Erreur lors de la soumission de l'ordre: {e}")
             raise
 
     def get_service_status(self, order_id: str) -> Dict[str, Any]:

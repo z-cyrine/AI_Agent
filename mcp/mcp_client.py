@@ -62,7 +62,7 @@ class MCPClient:
         Returns:
             Dict avec token JWT et statut
         """
-        logger.info("🔐 Appel MCP: authenticate()")
+        logger.info("Appel MCP: authenticate()")
         return self.call_tool("authenticate")
     
     def get_service_catalog(self) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services
         """
-        logger.info("📦 Appel MCP: get_service_catalog()")
+        logger.info("Appel MCP: get_service_catalog()")
         return self.call_tool("get_service_catalog")
     
     def submit_service_order(self, service_order_json: str) -> Dict[str, Any]:
@@ -89,7 +89,7 @@ class MCPClient:
         Returns:
             Dict avec l'ID de l'ordre créé
         """
-        logger.info("📤 Appel MCP: submit_service_order()")
+        logger.info("Appel MCP: submit_service_order()")
         return self.call_tool("submit_service_order", service_order_json=service_order_json)
     
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
@@ -104,7 +104,7 @@ class MCPClient:
         Returns:
             Dict avec l'état actuel de l'ordre
         """
-        logger.info(f"🔍 Appel MCP: get_order_status({order_id})")
+        logger.info(f"Appel MCP: get_order_status({order_id})")
         return self.call_tool("get_order_status", order_id=order_id)
     
     def get_service_inventory(self) -> Dict[str, Any]:
@@ -114,7 +114,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services déployés
         """
-        logger.info("📊 Appel MCP: get_service_inventory()")
+        logger.info("Appel MCP: get_service_inventory()")
         return self.call_tool("get_service_inventory")
     
     def validate_service_order(self, service_order_json: str) -> Dict[str, Any]:
@@ -129,7 +129,7 @@ class MCPClient:
         Returns:
             Dict avec is_valid (bool), erreurs, avertissements
         """
-        logger.info("✅ Appel MCP: validate_service_order()")
+        logger.info("Appel MCP: validate_service_order()")
         return self.call_tool("validate_service_order", service_order_json=service_order_json)
     
     # ========================================================================
@@ -143,7 +143,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services et les métadonnées
         """
-        logger.info("📖 Lecture ressource MCP: catalog://services")
+        logger.info("Lecture ressource MCP: catalog://services")
         return self.read_resource("catalog://services")
     
     def read_inventory(self) -> Dict[str, Any]:
@@ -153,7 +153,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services déployés
         """
-        logger.info("📖 Lecture ressource MCP: inventory://services")
+        logger.info("Lecture ressource MCP: inventory://services")
         return self.read_resource("inventory://services")
     
     # ========================================================================
@@ -176,12 +176,12 @@ class MCPClient:
                 result = self.mcp_server.call_tool(tool_name, **kwargs)
                 status = result.get("status", "unknown")
                 if status == "success":
-                    logger.debug(f"   ✅ Outil '{tool_name}' : succès")
+                    logger.debug(f"   Outil '{tool_name}' : succès")
                 else:
-                    logger.warning(f"   ⚠️  Outil '{tool_name}' : {result.get('message', 'erreur inconnue')}")
+                    logger.warning(f"   Outil '{tool_name}' : {result.get('message', 'erreur inconnue')}")
                 return result
         except Exception as e:
-            logger.error(f"   ❌ Erreur lors de l'appel de '{tool_name}': {e}")
+            logger.error(f"   Erreur lors de l'appel de '{tool_name}': {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -201,12 +201,12 @@ class MCPClient:
             if self.mode == "local":
                 result = self.mcp_server.get_resource(resource_uri)
                 if "error" not in result:
-                    logger.debug(f"   ✅ Ressource '{resource_uri}' : succès")
+                    logger.debug(f"   Ressource '{resource_uri}' : succès")
                 else:
-                    logger.warning(f"   ⚠️  Ressource '{resource_uri}' : {result.get('error', 'erreur inconnue')}")
+                    logger.warning(f"   Ressource '{resource_uri}' : {result.get('error', 'erreur inconnue')}")
                 return result
         except Exception as e:
-            logger.error(f"   ❌ Erreur lors de la lecture de '{resource_uri}': {e}")
+            logger.error(f"   Erreur lors de la lecture de '{resource_uri}': {e}")
             return {
                 "error": str(e)
             }
@@ -240,13 +240,13 @@ def main():
     client = MCPClient(mode="local")
     
     # Afficher les outils disponibles
-    print("📋 OUTILS MCP DISPONIBLES:")
+    print(" OUTILS MCP DISPONIBLES:")
     tools = client.get_available_tools()
     for tool_name in tools.keys():
         print(f"  • {tool_name}")
     
     # Afficher les ressources disponibles
-    print("\n📚 RESSOURCES MCP DISPONIBLES:")
+    print("\n RESSOURCES MCP DISPONIBLES:")
     resources = client.get_available_resources()
     for resource_uri in resources.keys():
         print(f"  • {resource_uri}")

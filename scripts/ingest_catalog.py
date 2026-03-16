@@ -18,7 +18,6 @@ from typing import List, Dict, Any
 import httpx
 from tqdm import tqdm
 
-# Ajouter le répertoire parent au path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from agents.agent2_selector import ServiceSelectorAgent
@@ -32,30 +31,36 @@ def get_openslice_token() -> str:
     Returns:
         str: Token JWT
     """
-    auth_url = f"{settings.openslice_base_url}/auth/realms/openslice/protocol/openid-connect/token"
+    auth_url = f"{settings.openslice_auth_url}/auth/realms/openslice/protocol/openid-connect/token"
     
     data = {
         "username": settings.openslice_username,
         "password": settings.openslice_password,
         "grant_type": "password",
-        "client_id": "admin-cli"
+        "client_id": "osapiWebClientId"
     }
     
     try:
+        print(f"Authentification Keycloak: {auth_url}")
         response = httpx.post(auth_url, data=data, timeout=30.0)
         response.raise_for_status()
         token = response.json()["access_token"]
-        print("✅ Authentification OpenSlice réussie")
+        print("✅ Authentification réussie")
         return token
     except httpx.HTTPStatusError as e:
         print(f"❌ Erreur d'authentification: {e}")
         print(f"   URL: {auth_url}")
-        print(f"   Vérifiez les credentials dans .env")
+        print(f"   Statut: {e.response.status_code}")
+        print(f"   Réponse: {e.response.text}")
+        raise
+    except httpx.ConnectError:
+        print(f"❌ Impossible de joindre Keycloak sur {settings.openslice_auth_url}")
+        print(f"   Vérifiez que le container 'keycloak' est démarré (port 8080)")
         raise
     except Exception as e:
         print(f"❌ Erreur de connexion à OpenSlice: {e}")
         print(f"   URL: {auth_url}")
-        print(f"   OpenSlice est-il démarré?")
+        print(f"   OpenSlice/Keycloak est-il démarré?")
         raise
 
 

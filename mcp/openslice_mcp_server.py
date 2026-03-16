@@ -44,7 +44,7 @@ class OpenSliceMCPServer:
         self._resources = {}
         self._register_tools()
         self._register_resources()
-        logger.info("✅ Serveur MCP OpenSlice initialisé")
+        logger.info("Serveur MCP OpenSlice initialisé")
     
     # ========================================================================
     # ENREGISTREMENT DES OUTILS ET RESSOURCES
@@ -146,7 +146,7 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"❌ Erreur d'authentification: {e}")
+            logger.error(f" Erreur d'authentification: {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -156,7 +156,7 @@ class OpenSliceMCPServer:
         """Outil MCP: Récupère le catalogue complet des services (TMF633)"""
         try:
             services = self.client.get_catalog()
-            logger.info(f"📦 Catalogue récupéré: {len(services)} service(s)")
+            logger.info(f" Catalogue récupéré: {len(services)} service(s)")
             return {
                 "status": "success",
                 "services": services,
@@ -164,7 +164,7 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"❌ Erreur: {e}")
+            logger.error(f" Erreur: {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -180,7 +180,7 @@ class OpenSliceMCPServer:
             result = self.client.submit_order(service_order)
             
             order_id = result.get("id", "inconnu")
-            logger.info(f"✅ Ordre soumis: {order_id}")
+            logger.info(f" Ordre soumis: {order_id}")
             
             return {
                 "status": "success",
@@ -190,13 +190,13 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON invalide: {e}")
+            logger.error(f" JSON invalide: {e}")
             return {
                 "status": "error",
                 "message": f"JSON invalide: {str(e)}"
             }
         except Exception as e:
-            logger.error(f"❌ Erreur lors de la soumission: {e}")
+            logger.error(f" Erreur lors de la soumission: {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -206,7 +206,7 @@ class OpenSliceMCPServer:
         """Outil MCP: Récupère le statut d'un ordre de service"""
         try:
             status = self.client.get_service_status(order_id)
-            logger.info(f"🔍 Statut de l'ordre {order_id}: {status['state']}")
+            logger.info(f" Statut de l'ordre {order_id}: {status['state']}")
             
             return {
                 "status": "success",
@@ -216,7 +216,7 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"❌ Erreur: {e}")
+            logger.error(f" Erreur: {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -226,7 +226,7 @@ class OpenSliceMCPServer:
         """Outil MCP: Récupère l'inventaire des services déployés (TMF638)"""
         try:
             inventory = self.client.get_service_inventory()
-            logger.info(f"📊 Inventaire récupéré: {len(inventory)} service(s) actif(s)")
+            logger.info(f" Inventaire récupéré: {len(inventory)} service(s) actif(s)")
             
             return {
                 "status": "success",
@@ -235,7 +235,7 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except Exception as e:
-            logger.error(f"❌ Erreur: {e}")
+            logger.error(f" Erreur: {e}")
             return {
                 "status": "error",
                 "message": str(e)
@@ -284,14 +284,14 @@ class OpenSliceMCPServer:
                 "timestamp": datetime.now().isoformat()
             }
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON invalide: {e}")
+            logger.error(f" JSON invalide: {e}")
             return {
                 "status": "error",
                 "message": f"JSON invalide: {str(e)}",
                 "is_valid": False
             }
         except Exception as e:
-            logger.error(f"❌ Erreur: {e}")
+            logger.error(f" Erreur: {e}")
             return {
                 "status": "error",
                 "message": str(e),
@@ -443,7 +443,7 @@ def main():
     server = OpenSliceMCPServer()
     
     # Afficher les outils disponibles
-    print("📋 OUTILS MCP DISPONIBLES:")
+    print(" OUTILS MCP DISPONIBLES:")
     print("-" * 80)
     tools_info = server.get_tools_info()
     for tool_name, tool_info in tools_info.items():
@@ -451,7 +451,7 @@ def main():
         print(f"    Description: {tool_info['description']}")
     
     # Afficher les ressources disponibles
-    print("\n📚 RESSOURCES MCP DISPONIBLES:")
+    print("\n RESSOURCES MCP DISPONIBLES:")
     print("-" * 80)
     resources_info = server.get_resources_info()
     for resource_uri, description in resources_info.items():
