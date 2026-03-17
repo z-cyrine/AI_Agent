@@ -1,18 +1,14 @@
 #!/bin/bash
 
-echo "-------------------------------------------------------"
-echo "🌐 Initialisation du Projet IBN - OpenSlice"
-echo "-------------------------------------------------------"
-
 # 1. Activation de l'environnement Conda
 # On utilise 'source' pour s'assurer que conda est reconnu dans le script
 source ~/miniconda/etc/profile.d/conda.sh
 conda activate ai_agent_env
 
 if [ $? -eq 0 ]; then
-    echo "✅ Environnement ai_agent_env activé."
+    echo "Environnement ai_agent_env activé."
 else
-    echo "❌ Échec de l'activation de l'environnement."
+    echo "Échec de l'activation de l'environnement."
     exit 1
 fi
 

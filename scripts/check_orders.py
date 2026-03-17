@@ -103,10 +103,11 @@ def show_order_details(order_id):
                 print(f"  {date} | {author:<30} | {text}")
         
         # Afficher les items de l'ordre
-        if order.get('orderItem'):
+        items = order.get('serviceOrderItem') or order.get('orderItem')
+        if items:
             print(f"\n[SERVICES COMMANDÉS]:")
             print("-" * 80)
-            for item in order['orderItem']:
+            for item in items:
                 service = item.get('service', {})
                 print(f"  • {service.get('name', 'Sans nom')}")
                 print(f"    - Action: {item.get('action', 'N/A')}")
