@@ -3,8 +3,13 @@ Client HTTP pour OpenSlice
 
 Role : Encapsule les appels HTTP vers l'API REST OpenSlice (TMF633, TMF641, TMF638)
        et l'authentification Keycloak.
+       
+Mode Mock : Si OPENSLICE_MOCK_MODE=true dans .env, simule les réponses sans connexion réelle.
 """
+import os
+import uuid
 from typing import Optional, Dict, Any
+from datetime import datetime
 import httpx
 from config import settings
 
@@ -18,23 +23,37 @@ class OpenSliceClient:
         username: Optional[str] = None,
         password: Optional[str] = None,
         client_id: Optional[str] = None,
-        timeout: float = 60.0
+        timeout: float = 60.0,
+        mock_mode: Optional[bool] = None
     ):
+        # Mode mock : priorité à l'argument, sinon settings, sinon False
+        self.mock_mode = mock_mode if mock_mode is not None else settings.openslice_mock_mode
+        
+        if self.mock_mode:
+            print("🔶 [MOCK MODE] Client OpenSlice en mode simulation (pas de connexion réelle)")
+        
         self.base_url = base_url or settings.openslice_base_url
         self.auth_url = auth_url or settings.openslice_auth_url 
         self.username = username or settings.openslice_username
         self.password = password or settings.openslice_password
         self.client_id = client_id or settings.openslice_client_id
         self.token: Optional[str] = None
+        
+        # Stockage des ordres simulés (mock mode)
+        self._mock_orders: Dict[str, Dict[str, Any]] = {}
 
-        self.client = httpx.Client(timeout=timeout)
+        self.client = httpx.Client(timeout=timeout) if not self.mock_mode else None
 
     def authenticate(self) -> str:
         """
         Obtient un token JWT aupres de Keycloak (port 8080).
-        Utilise osapiWebClientId comme client_id car admin-cli n'a pas
-        les droits suffisants pour les operations d'ecriture (POST serviceOrder).
+        En mode mock, retourne un token simulé.
         """
+        if self.mock_mode:
+            self.token = "mock-jwt-token-for-testing-purposes-only"
+            print("🔶 [MOCK] Authentification simulée -- Token JWT fictif généré")
+            return self.token
+            
         token_url = f"{self.auth_url}/auth/realms/openslice/protocol/openid-connect/token"
 
         payload = {
@@ -78,10 +97,19 @@ class OpenSliceClient:
     def get_catalog(self) -> list:
         """
         Recupere toutes les ServiceSpecifications du catalogue OpenSlice (TMF633).
-
-        Appelle : GET http://localhost:13082/tmf-api/serviceCatalogManagement/v4/serviceSpecification
-        Retourne : liste de ServiceSpecification (nom, description, UUID, caracteristiques...)
+        En mode mock, retourne une liste vide (utiliser ChromaDB avec --mock).
         """
+        if self.mock_mode:
+            print("🔶 [MOCK] Catalogue simulé (utilisez ChromaDB avec --mock pour les services)")
+            # Retourner les services mock similaires à ceux dans ingest_catalog.py
+            return [
+                {"id": "mock-xr-service-001", "name": "XR Application Bundle", "description": "Extended Reality service bundle"},
+                {"id": "mock-video-streaming-002", "name": "4K Video Streaming Service", "description": "High-definition video streaming"},
+                {"id": "mock-iot-platform-003", "name": "IoT Platform Service", "description": "Industrial IoT platform"},
+                {"id": "mock-edge-compute-004", "name": "Edge Computing Service", "description": "Low-latency edge computing"},
+                {"id": "mock-5g-slice-005", "name": "5G Network Slice - eMBB", "description": "Enhanced Mobile Broadband 5G"},
+            ]
+        
         url = f"{self.base_url}/tmf-api/serviceCatalogManagement/v4/serviceSpecification"
 
         print(f"Recuperation du catalogue sur: {url}")
@@ -117,6 +145,24 @@ class OpenSliceClient:
         Appelle : POST http://localhost:13082/tmf-api/serviceOrdering/v4/serviceOrder
         Retourne : la reponse OpenSlice avec l'ID et le statut de l'ordre cree
         """
+        # Mode mock : simuler la soumission
+        if self.mock_mode:
+            order_id = f"mock-order-{uuid.uuid4().hex[:8]}"
+            print(f"🔶 [MOCK] Soumission simulée de l'ordre")
+            print(f"✅ [MOCK] Ordre créé -- ID: {order_id} | Statut: ACKNOWLEDGED")
+            
+            # Stocker l'ordre simulé
+            mock_result = {
+                "id": order_id,
+                "state": "ACKNOWLEDGED",
+                "externalId": service_order.get("externalId", "unknown"),
+                "orderDate": datetime.now().isoformat(),
+                "serviceOrderItem": service_order.get("serviceOrderItem", []),
+                "@type": "ServiceOrder"
+            }
+            self._mock_orders[order_id] = mock_result
+            return mock_result
+        
         url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
 
         print(f"Soumission de l'ordre sur: {url}")
@@ -222,9 +268,11 @@ class OpenSliceClient:
         except Exception as e:
             print(f"Erreur lors de la recuperation de l'inventaire: {e}")
             raise
+
     def close(self):
         """Ferme le client HTTP proprement."""
-        self.client.close()
+        if self.client:
+            self.client.close()
 
 
 # TEST DIRECT

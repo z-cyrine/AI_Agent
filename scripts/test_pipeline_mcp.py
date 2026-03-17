@@ -66,6 +66,10 @@ def test_pipeline(user_query: str, verbose: bool = False):
         is_valid=False,
         validation_errors=[],
         validation_retry_count=0,
+        user_approved=False,
+        user_wants_to_retry=False,
+        user_retry_count=0,
+        non_interactive_mode=False,
         openslice_response=None,
         final_status="pending"
     )

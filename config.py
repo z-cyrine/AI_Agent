@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     openslice_username: str = "admin"
     openslice_password: str = "admin"
     openslice_client_id: str = "osapiWebClientId"
+    openslice_mock_mode: bool = False  # Mode mock pour tester sans OpenSlice
     
     # ChromaDB Configuration
     chroma_persist_dir: str = "./data/chroma_db"
