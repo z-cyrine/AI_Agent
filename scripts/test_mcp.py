@@ -28,13 +28,13 @@ from schemas.tmf641 import ServiceOrder, ServiceOrderItem, Service, ServiceSpeci
 def print_section(title: str):
     """Affiche un titre de section"""
     print(f"\n{'='*80}")
-    print(f"{'🧪 ' if '🧪' not in title else ''}{title}")
+    print(f"{title}")
     print(f"{'='*80}")
 
 
 def print_result(status: str, message: str = "", details: str = ""):
     """Affiche un résultat formaté"""
-    icon = "✅" if status == "success" else "❌"
+    icon = "[OK]" if status == "success" else "[ERROR]"
     print(f"\n{icon} {message}")
     if details:
         print(f"   {details}")
@@ -222,26 +222,26 @@ def main():
     args = parser.parse_args()
     
     print("\n" + "="*80)
-    print("🧪 SUITE DE TESTS - SERVEUR MCP OPENSLICE")
+    print("TEST SUITE - SERVEUR MCP OPENSLICE")
     print("="*80)
     print(f"Timestamp: {datetime.now().isoformat()}")
     print(f"Mode verbeux: {'Oui' if args.verbose else 'Non'}")
     
     # Initialiser le serveur MCP
-    print("\n🚀 Initialisation du serveur MCP...")
+    print("\nInitialisation du serveur MCP...")
     try:
         server = OpenSliceMCPServer()
-        print("   ✅ Serveur MCP initialisé avec succès")
+        print("   [OK] Serveur MCP initialisé avec succès")
     except Exception as e:
-        print(f"   ❌ Erreur lors de l'initialisation: {e}")
+        print(f"   [ERROR] Erreur lors de l'initialisation: {e}")
         return 1
     
     # Afficher les outils et ressources disponibles
-    print("\n📋 OUTILS MCP DISPONIBLES:")
+    print("\nOUTILS MCP DISPONIBLES:")
     for tool_name, description in server.get_tools().items():
         print(f"   • {tool_name}: {description}")
     
-    print("\n📚 RESSOURCES MCP DISPONIBLES:")
+    print("\nRESSOURCES MCP DISPONIBLES:")
     for resource_uri, description in server.get_resources().items():
         print(f"   • {resource_uri}: {description}")
     
@@ -251,7 +251,7 @@ def main():
     # Test 1: Authentification
     results["authenticate"] = test_authenticate(server, args.verbose)
     if not results["authenticate"]:
-        print("\n⚠️  Impossible de continuer sans authentification")
+        print("\nImpossible de continuer sans authentification")
         server.close()
         return 1
     
@@ -260,7 +260,7 @@ def main():
     results["get_catalog"] = len(services) > 0
     
     if not services:
-        print("\n⚠️  Impossible de continuer sans services dans le catalogue")
+        print("\nImpossible de continuer sans services dans le catalogue")
         server.close()
         return 1
     
@@ -290,10 +290,10 @@ def main():
     total = len(results)
     
     for test_name, passed_status in results.items():
-        icon = "✅" if passed_status else "⏭️ "
+        icon = "[OK]" if passed_status else "[SKIP]"
         print(f"  {icon} {test_name}: {'RÉUSSI' if passed_status else 'IGNORÉ/ÉCHOUÉ'}")
     
-    print(f"\n📊 Résultat: {passed}/{total} tests réussis")
+    print(f"\nRésultat: {passed}/{total} tests réussis")
     
     # Fermer le serveur
     server.close()

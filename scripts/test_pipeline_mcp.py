@@ -22,13 +22,13 @@ from datetime import datetime
 def print_section(title: str):
     """Affiche un titre de section"""
     print(f"\n{'='*80}")
-    print(f"{'🧪 ' if '🧪' not in title else ''}{title}")
+    print(f"{title}")
     print(f"{'='*80}")
 
 
 def print_step(step_num: int, agent_name: str, status: str):
     """Affiche une étape du pipeline"""
-    icon = "✅" if status == "success" else "⚠️ " if status == "warning" else "❌"
+    icon = "[OK]" if status == "success" else "[WARN]" if status == "warning" else "[ERROR]"
     print(f"\n{icon} Étape {step_num}: {agent_name} - {status.upper()}")
 
 
@@ -42,16 +42,16 @@ def test_pipeline(user_query: str, verbose: bool = False):
     """
     print_section("TEST COMPLET DU PIPELINE - AVEC INTÉGRATION MCP")
     
-    print(f"\n📝 Requête utilisateur:")
+    print(f"\nRequête utilisateur:")
     print(f"   {user_query[:100]}...")
     
     # Créer le workflow
-    print("\n🚀 Initialisation du workflow LangGraph...")
+    print("\nInitialisation du workflow LangGraph...")
     try:
         app = create_workflow()
-        print("   ✅ Workflow créé avec succès")
+        print("   [OK] Workflow créé avec succès")
     except Exception as e:
-        print(f"   ❌ Erreur lors de la création du workflow: {e}")
+        print(f"   [ERROR] Erreur lors de la création du workflow: {e}")
         return False
     
     # État initial
@@ -72,7 +72,7 @@ def test_pipeline(user_query: str, verbose: bool = False):
     
     # Exécuter le workflow
     print("\n" + "="*80)
-    print("🔄 EXÉCUTION DU PIPELINE")
+    print("EXÉCUTION DU PIPELINE")
     print("="*80)
     
     try:
@@ -81,52 +81,52 @@ def test_pipeline(user_query: str, verbose: bool = False):
         # Afficher les résultats
         print_section("RÉSULTATS DU PIPELINE")
         
-        print("\n📊 RÉSUMÉ:")
+        print("\nRÉSUMÉ:")
         print(f"  Statut final        : {result['final_status']}")
-        print(f"  Ordre valide        : {'✅ OUI' if result['is_valid'] else '❌ NON'}")
+        print(f"  Ordre valide        : {'[OK] OUI' if result['is_valid'] else '[ERROR] NON'}")
         print(f"  Nombre de retries   : {result['validation_retry_count']}")
         
         # Résultats Agent 1
         print("\n[Agent 1 - Interpreter]")
         if result['intent']:
-            print(f"  ✅ Intention générée: {result['intent'].intent_id}")
+            print(f"  [OK] Intention générée: {result['intent'].intent_id}")
             print(f"     Type: {result['intent'].type}")
             print(f"     Sous-intentions: {len(result['intent'].sub_intents)}")
         else:
-            print(f"  ❌ Erreurs: {result['intent_errors']}")
+            print(f"  [ERROR] Erreurs: {result['intent_errors']}")
         
         # Résultats Agent 2
         print("\n[Agent 2 - Selector]")
         if result['selected_services']:
-            print(f"  ✅ {len(result['selected_services'])} service(s) sélectionné(s)")
+            print(f"  [OK] {len(result['selected_services'])} service(s) sélectionné(s)")
             for i, svc in enumerate(result['selected_services'][:3], 1):
                 name = svc.get('name', 'Unknown')
                 print(f"     {i}. {name}")
         else:
             if result['selection_errors']:
-                print(f"  ❌ Erreurs: {result['selection_errors']}")
+                print(f"  [ERROR] Erreurs: {result['selection_errors']}")
             else:
-                print(f"  ⚠️  Aucun service sélectionné")
+                print(f"  [WARN] Aucun service sélectionné")
         
         # Résultats Agent 3
         print("\n[Agent 3 - Translator]")
         if result['service_order']:
-            print(f"  ✅ Ordre TMF641 généré: {result['service_order'].externalId}")
+            print(f"  [OK] Ordre TMF641 généré: {result['service_order'].externalId}")
             print(f"     Items: {len(result['service_order'].serviceOrderItem)}")
         else:
             if result['translation_errors']:
-                print(f"  ❌ Erreurs: {result['translation_errors']}")
+                print(f"  [ERROR] Erreurs: {result['translation_errors']}")
             else:
-                print(f"  ⚠️  Pas d'ordre généré")
+                print(f"  [WARN] Pas d'ordre généré")
         
         # Résultats Agent 4 (avec MCP)
         print("\n[Agent 4 - Validator] (via MCP)")
         if result['validation_errors']:
-            print(f"  ❌ Erreurs de validation:")
+            print(f"  [ERROR] Erreurs de validation:")
             for error in result['validation_errors']:
                 print(f"     - {error}")
         else:
-            print(f"  ✅ Validation réussie (aucune erreur)")
+            print(f"  [OK] Validation réussie (aucune erreur)")
         
         # Résultats Submit (via MCP)
         print("\n[Submit] (via MCP)")
@@ -134,19 +134,19 @@ def test_pipeline(user_query: str, verbose: bool = False):
             response = result['openslice_response']
             status = response.get('status', 'unknown')
             if status == 'success':
-                print(f"  ✅ Ordre soumis avec succès")
+                print(f"  [OK] Ordre soumis avec succès")
                 print(f"     Order ID: {response.get('order_id', '?')}")
                 print(f"     État: {response.get('order_state', '?')}")
             else:
-                print(f"  ❌ Erreur lors de la soumission")
+                print(f"  [ERROR] Erreur lors de la soumission")
                 print(f"     Message: {response.get('message', '?')}")
         else:
-            print(f"  ❌ Aucune réponse OpenSlice")
+            print(f"  [ERROR] Aucune réponse OpenSlice")
         
         # Affichage détaillé si verbose
         if verbose:
             print("\n" + "="*80)
-            print("📋 DÉTAILS COMPLETS")
+            print("DÉTAILS COMPLETS")
             print("="*80)
             
             if result['intent']:
@@ -174,15 +174,15 @@ def test_pipeline(user_query: str, verbose: bool = False):
         )
         
         if success:
-            print("✅ PIPELINE RÉUSSI - ORDRE SOUMIS À OPENSLICE")
+            print("[OK] PIPELINE RÉUSSI - ORDRE SOUMIS À OPENSLICE")
         else:
-            print("⚠️  PIPELINE COMPLÉTÉ AVEC DES AVERTISSEMENTS")
+            print("[WARN] PIPELINE COMPLÉTÉ AVEC DES AVERTISSEMENTS")
         print("="*80 + "\n")
         
         return success
     
     except Exception as e:
-        print(f"\n❌ ERREUR LORS DE L'EXÉCUTION DU PIPELINE:")
+        print(f"\n[ERROR] ERREUR LORS DE L'EXÉCUTION DU PIPELINE:")
         print(f"   {e}")
         import traceback
         traceback.print_exc()

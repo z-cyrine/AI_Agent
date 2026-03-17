@@ -29,7 +29,7 @@ from mcp.mcp_client import MCPClient
 
 st.set_page_config(
     page_title="Pipeline IBN - Interface Utilisateur",
-    page_icon="🚀",
+    page_icon="*",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -137,18 +137,18 @@ orch_context.register_feedback_callback(get_feedback_from_user)
 # PAGE PRINCIPALE
 # ============================================================
 
-st.title("🚀 Pipeline IBN - Interface Utilisateur")
+st.title("[*] Pipeline IBN - Interface Utilisateur")
 st.markdown("Orchestration intelligente des services réseau et cloud")
 
 # Créer les onglets
-tab1, tab2, tab3 = st.tabs(["📝 Nouvelle Intention", "📊 Suivi Pipeline", "📋 Historique Ordres"])
+tab1, tab2, tab3 = st.tabs(["[*] Nouvelle Intention", "[*] Suivi Pipeline", "[*] Historique Ordres"])
 
 # ============================================================
 # ONGLET 1 : NOUVELLE INTENTION
 # ============================================================
 
 with tab1:
-    st.header("📝 Rédiger votre Intention")
+    st.header("[*] Rédiger votre Intention")
     st.markdown("""
     Décrivez ce que vous souhaitez déployer en langage naturel.
     
@@ -170,9 +170,9 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🚀 Lancer le Pipeline", key="launch_btn"):
+        if st.button("[*] Lancer le Pipeline", key="launch_btn"):
             if not user_query.strip():
-                st.error("❌ Veuillez entrer une intention")
+                st.error("[ERROR] Veuillez entrer une intention")
             else:
                 st.session_state.current_order = {
                     "id": f"order_{datetime.now().timestamp()}",
@@ -186,7 +186,7 @@ with tab1:
                 st.rerun()
     
     with col2:
-        if st.button("🔄 Réinitialiser", key="reset_btn"):
+        if st.button("[*] Réinitialiser", key="reset_btn"):
             st.session_state.current_order = None
             st.session_state.current_result = None
             st.session_state.pipeline_running = False
@@ -198,12 +198,12 @@ with tab1:
 # ============================================================
 
 with tab2:
-    st.header("📊 Suivi du Pipeline")
+    st.header("[*] Suivi du Pipeline")
     
     if st.session_state.current_order is None:
-        st.info("💡 Aucun pipeline en cours. Allez à l'onglet '📝 Nouvelle Intention' pour commencer.")
+        st.info("[*] Aucun pipeline en cours. Allez à l'onglet '[*] Nouvelle Intention' pour commencer.")
     else:
-        st.subheader("🎯 Intention")
+        st.subheader("[*] Intention")
         st.write(st.session_state.current_order["query"])
         
         # Lancer le pipeline en arrière-plan
@@ -214,7 +214,7 @@ with tab2:
             feedback_col = st.empty()
             
             with progress_col.container():
-                st.info("⏳ Exécution du pipeline en cours...")
+                st.info("[*] Exécution du pipeline en cours...")
             
             # Thread pour exécuter le pipeline
             def run_pipeline():
@@ -245,7 +245,7 @@ with tab2:
                     st.session_state.awaiting_feedback = False
                     
                 except Exception as e:
-                    st.error(f"❌ Erreur: {e}")
+                    st.error(f"[ERROR] Erreur: {e}")
                     st.session_state.pipeline_running = False
             
             # Lancer le pipeline dans un thread
@@ -255,56 +255,56 @@ with tab2:
             # Afficher les mises à jour en temps réel
             while st.session_state.pipeline_running or st.session_state.awaiting_feedback:
                 with updates_col.container():
-                    st.subheader("📡 Progression")
+                    st.subheader("[*] Progression")
                     for update in st.session_state.step_updates:
                         step = update["step"]
                         if "error" in step.lower():
                             st.markdown(f"""
                             <div class="step-error">
-                            <strong>❌ {step}</strong>
+                            <strong>[ERROR] {step}</strong>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
                             st.markdown(f"""
                             <div class="step-success">
-                            <strong>✅ {step}</strong>
+                            <strong>[OK] {step}</strong>
                             </div>
                             """, unsafe_allow_html=True)
                 
                 # Afficher les boutons de feedback si en attente
                 if st.session_state.awaiting_feedback:
                     with feedback_col.container():
-                        st.subheader("🎯 Votre Feedback")
-                        st.info("📋 Veuillez valider l'ordre avant de continuer")
+                        st.subheader("[*] Votre Feedback")
+                        st.info("[*] Veuillez valider l'ordre avant de continuer")
                         
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            if st.button("✅ Accepter et Soumettre", key="accept_btn_live"):
+                            if st.button("[OK] Accepter et Soumettre", key="accept_btn_live"):
                                 st.session_state.user_feedback = {
                                     "user_approved": True,
                                     "user_wants_to_retry": False,
                                     "user_retry_count": 0
                                 }
-                                st.success("✅ Ordre accepté !")
+                                st.success("[OK] Ordre accepté !")
                         
                         with col2:
-                            if st.button("❌ Rejeter et Arrêter", key="reject_btn_live"):
+                            if st.button("[ERROR] Rejeter et Arrêter", key="reject_btn_live"):
                                 st.session_state.user_feedback = {
                                     "user_approved": False,
                                     "user_wants_to_retry": False,
                                     "user_retry_count": 0
                                 }
-                                st.warning("❌ Ordre rejeté")
+                                st.warning("[ERROR] Ordre rejeté")
                         
                         with col3:
-                            if st.button("🔄 Recommencer", key="retry_btn_live"):
+                            if st.button("[*] Recommencer", key="retry_btn_live"):
                                 st.session_state.user_feedback = {
                                     "user_approved": False,
                                     "user_wants_to_retry": True,
                                     "user_retry_count": 1
                                 }
-                                st.info("🔄 Recommençons...")
+                                st.info("[*] Recommençons...")
                 
                 time.sleep(0.2)
             
@@ -322,74 +322,74 @@ with tab2:
             
             with col1:
                 if result["intent"]:
-                    st.success("✅ Agent 1")
+                    st.success("[OK] Agent 1")
                 else:
-                    st.error("❌ Agent 1")
+                    st.error("[ERROR] Agent 1")
             
             with col2:
                 if result["selected_services"]:
-                    st.success("✅ Agent 2")
+                    st.success("[OK] Agent 2")
                 else:
-                    st.error("❌ Agent 2")
+                    st.error("[ERROR] Agent 2")
             
             with col3:
                 if result["service_order"]:
-                    st.success("✅ Agent 3")
+                    st.success("[OK] Agent 3")
                 else:
-                    st.error("❌ Agent 3")
+                    st.error("[ERROR] Agent 3")
             
             with col4:
                 if result["is_valid"]:
-                    st.success("✅ Agent 4")
+                    st.success("[OK] Agent 4")
                 else:
-                    st.error("❌ Agent 4")
+                    st.error("[ERROR] Agent 4")
             
             st.divider()
             
             # Détails Agent 1
-            with st.expander("🔴 Agent 1 - Interpréteur", expanded=True):
+            with st.expander("[RED] Agent 1 - Interpréteur", expanded=True):
                 if result["intent"]:
-                    st.success("✅ Intention structurée")
+                    st.success("[OK] Intention structurée")
                     st.json(result["intent"].model_dump(exclude_none=True))
                 else:
-                    st.error(f"❌ {result['intent_errors']}")
+                    st.error(f"[ERROR] {result['intent_errors']}")
             
             # Détails Agent 2
-            with st.expander("🟠 Agent 2 - Sélecteur"):
+            with st.expander("[ORANGE] Agent 2 - Sélecteur"):
                 if result["selected_services"]:
-                    st.success(f"✅ {len(result['selected_services'])} service(s)")
+                    st.success(f"[OK] {len(result['selected_services'])} service(s)")
                     for svc in result["selected_services"]:
-                        st.write(f"• {svc.get('name')}")
+                        st.write(f"* {svc.get('name')}")
                 else:
-                    st.error(f"❌ {result['selection_errors']}")
+                    st.error(f"[ERROR] {result['selection_errors']}")
             
             # Détails Agent 3
-            with st.expander("🟡 Agent 3 - Traducteur"):
+            with st.expander("[YELLOW] Agent 3 - Traducteur"):
                 if result["service_order"]:
-                    st.success("✅ ServiceOrder généré")
+                    st.success("[OK] ServiceOrder généré")
                     st.json(result["service_order"].model_dump(exclude_none=True))
                 else:
-                    st.error(f"❌ {result['translation_errors']}")
+                    st.error(f"[ERROR] {result['translation_errors']}")
             
             # Détails Agent 4
-            with st.expander("🟢 Agent 4 - Validateur"):
+            with st.expander("[GREEN] Agent 4 - Validateur"):
                 if result["is_valid"]:
-                    st.success("✅ Validation OK")
+                    st.success("[OK] Validation OK")
                 else:
-                    st.error(f"❌ {result['validation_errors']}")
+                    st.error(f"[ERROR] {result['validation_errors']}")
             
             st.divider()
             
             # FEEDBACK UTILISATEUR
-            st.subheader("🎯 Votre Feedback")
+            st.subheader("[*] Votre Feedback")
             
             if result["final_status"] == "pending" or (result["is_valid"] and not result["user_approved"]):
-                st.info("📋 Veuillez valider l'ordre avant de continuer")
+                st.info("[*] Veuillez valider l'ordre avant de continuer")
                 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    if st.button("✅ Accepter et Soumettre", key="accept_btn"):
+                    if st.button("[OK] Accepter et Soumettre", key="accept_btn"):
                         st.session_state.user_feedback = {
                             "user_approved": True,
                             "user_wants_to_retry": False,
@@ -399,7 +399,7 @@ with tab2:
                         st.rerun()
                 
                 with col2:
-                    if st.button("❌ Rejeter et Arrêter", key="reject_btn"):
+                    if st.button("[ERROR] Rejeter et Arrêter", key="reject_btn"):
                         st.session_state.user_feedback = {
                             "user_approved": False,
                             "user_wants_to_retry": False,
@@ -409,7 +409,7 @@ with tab2:
                         st.rerun()
                 
                 with col3:
-                    if st.button("🔄 Recommencer", key="retry_btn"):
+                    if st.button("[*] Recommencer", key="retry_btn"):
                         st.session_state.user_feedback = {
                             "user_approved": False,
                             "user_wants_to_retry": True,
@@ -419,7 +419,7 @@ with tab2:
                         st.rerun()
             
             elif result["user_approved"] and result["final_status"] != "submitted":
-                st.success("✅ Soumission en cours...")
+                st.success("[OK] Soumission en cours...")
                 try:
                     mcp_client = MCPClient(mode="local")
                     order_json = result["service_order"].model_dump_json(exclude_none=True)
@@ -429,29 +429,29 @@ with tab2:
                     result["openslice_response"] = submit_result
                     if submit_result.get("status") == "success":
                         result["final_status"] = "submitted"
-                        st.success("✅ Ordre soumis!")
+                        st.success("[OK] Ordre soumis!")
                         st.write(f"**Order ID:** {submit_result.get('order_id')}")
                     else:
-                        st.error("❌ Erreur soumission")
+                        st.error("[ERROR] Erreur soumission")
                     
                     st.session_state.current_result = result
                 except Exception as e:
-                    st.error(f"❌ Erreur: {e}")
+                    st.error(f"[ERROR] Erreur: {e}")
             
             elif result["final_status"] == "submitted":
-                st.success("✅ PIPELINE RÉUSSI")
+                st.success("[OK] PIPELINE RÉUSSI")
                 if result.get("openslice_response"):
                     st.write(f"**Order ID:** {result['openslice_response'].get('order_id')}")
             
             elif result["final_status"] == "user_rejected":
-                st.warning("⛔ Ordre rejeté")
+                st.warning("[X] Ordre rejeté")
 
 # ============================================================
 # ONGLET 3 : HISTORIQUE
 # ============================================================
 
 with tab3:
-    st.header("📋 Historique des Ordres")
+    st.header("[*] Historique des Ordres")
     
     try:
         from mcp.openslice_client import OpenSliceClient
@@ -464,22 +464,22 @@ with tab3:
         if response.status_code == 200:
             orders = response.json()
             if orders:
-                st.success(f"✅ {len(orders)} ordre(s) trouvé(s)")
+                st.success(f"[OK] {len(orders)} ordre(s) trouvé(s)")
                 for order in orders:
                     st.write(f"- {order.get('externalId')} ({order.get('state')})")
             else:
-                st.info("📭 Aucun ordre")
+                st.info("[*] Aucun ordre")
         
         client.close()
     except Exception as e:
-        st.error(f"❌ Erreur: {e}")
+        st.error(f"[ERROR] Erreur: {e}")
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
 with st.sidebar:
-    st.title("⚙️ Configuration")
+    st.title("[*] Configuration")
     st.markdown("""
     ### Pipeline IBN Agentic AI
     

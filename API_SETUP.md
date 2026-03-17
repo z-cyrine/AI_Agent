@@ -3,9 +3,9 @@
 ## Provider: Groq
 
 **Avantages:**
-- ⚡ **Ultra-rapide** (~280 tokens/sec)
-- 🆓 **Quota gratuit généreux** (30 req/min, 6000 tokens/min)
-- 🎯 **Parfait pour développement et production**
+- **Ultra-rapide** (~280 tokens/sec)
+- **Quota gratuit généreux** (30 req/min, 6000 tokens/min)
+- **Parfait pour développement et production**
 
 **Configuration:**
 
@@ -41,7 +41,7 @@ python test_quick.py
 
 ```bash
 # Test rapide de connexion
-python -c "from agents.agent1_interpreter import IntentInterpreterAgent; agent = IntentInterpreterAgent(); print('✅ Configuration OK')"
+python -c "from agents.agent1_interpreter import IntentInterpreterAgent; agent = IntentInterpreterAgent(); print('Configuration OK')"
 ```
 
 ## Dépannage
@@ -57,12 +57,12 @@ python -c "from agents.agent1_interpreter import IntentInterpreterAgent; agent =
 **Erreur: "Model not found"**
 - Utilisez `llama-3.3-70b-versatile` (nom exact)
 
-## 🎯 Pourquoi Groq uniquement?
+## Pourquoi Groq uniquement?
 
 **Pour ce projet IBN:**
-- ✅ Gratuit (30 req/min)
-- ✅ Ultra-rapide
-- ✅ Stable et fiable
-- ✅ Largement suffisant pour développement ET production
+- Gratuit (30 req/min)
+- Ultra-rapide
+- Stable et fiable
+- Largement suffisant pour développement ET production
 
 **Note**: Le quota de 30 req/min est parfait pour un système IBN!
