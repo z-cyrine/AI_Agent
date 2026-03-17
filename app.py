@@ -147,11 +147,12 @@ def get_css():
     }
     
     .agent-card.pending { 
-        border-left-color: #475569; 
+        border-left-color: #94a3b8; 
         opacity: 0.5;
     }
     .agent-card.pending::before {
-        background: #475569;
+        background: #94a3b8;
+        box-shadow: 0 0 8px rgba(148, 163, 184, 0.4);
     }
     
     .agent-card.running { 
@@ -177,6 +178,7 @@ def get_css():
     }
     .agent-card.completed::before {
         background: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
     }
     
     .agent-card.error { 
@@ -185,16 +187,19 @@ def get_css():
     }
     .agent-card.error::before {
         background: #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
     }
     
     .agent-card.waiting { 
-        border-left-color: #6366f1; 
-        background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%);
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+        border-left-color: #f59e0b; 
+        background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.04) 100%);
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
         opacity: 1;
     }
     .agent-card.waiting::before {
-        background: #6366f1;
+        background: #f59e0b;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+        animation: pulse-dot 1.5s ease-in-out infinite;
     }
     
     .agent-header {
@@ -462,7 +467,7 @@ def render_agent_html(agent_id: str, name: str, icon: str, description: str) -> 
     elif status == "running":
         status_html = '<span class="agent-status running"><span class="spinner"></span>En cours...</span>'
     elif status == "completed":
-        status_html = '<span class="agent-status completed">✅ Terminé</span>'
+        status_html = '<span class="agent-status completed">Terminé</span>'
     elif status == "error":
         status_html = '<span class="agent-status error">❌ Erreur</span>'
     elif status == "waiting":
@@ -691,7 +696,7 @@ def run_pipeline_phase2_submit(placeholders: dict):
     # Confirmation acceptée
     st.session_state.agents_state["confirm"]["status"] = "completed"
     st.session_state.agents_state["confirm"]["output"] = {
-        "décision": "✅ ACCEPTÉ par l'utilisateur",
+        "décision": "ACCEPTÉ par l'utilisateur",
         "timestamp": datetime.now().strftime("%H:%M:%S")
     }
     update_display(placeholders)
@@ -711,7 +716,7 @@ def run_pipeline_phase2_submit(placeholders: dict):
         if response.get("status") == "success":
             st.session_state.agents_state["submit"]["status"] = "completed"
             st.session_state.agents_state["submit"]["output"] = {
-                "statut": "✅ SOUMIS",
+                "statut": "SOUMIS",
                 "order_id": response.get("order_id", "N/A"),
                 "state": response.get("order_state", "ACKNOWLEDGED"),
                 "mode": "MOCK" if settings.openslice_mock_mode else "OpenSlice"
@@ -750,7 +755,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs pour organiser l'interface
-tab_pipeline, tab_json = st.tabs(["🚀 Pipeline", "📄 Sorties JSON"])
+tab_pipeline, tab_json, tab_orders = st.tabs(["Pipeline", "Sorties JSON", "Ordres OpenSlice"])
 
 with tab_pipeline:
     # Layout
@@ -770,7 +775,7 @@ with tab_pipeline:
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             run_btn = st.button(
-                "🚀 Lancer", 
+                "Lancer", 
                 type="primary", 
                 use_container_width=True, 
                 disabled=st.session_state.is_running or st.session_state.awaiting_confirmation
@@ -781,7 +786,7 @@ with tab_pipeline:
                 st.session_state.saved_query = user_query
                 st.session_state.show_rejected_message = False
         with col_btn2:
-            reset_btn = st.button("🔄 Reset", use_container_width=True)
+            reset_btn = st.button("Reset", use_container_width=True)
             if reset_btn:
                 for k in ["agents_state", "is_running", "pipeline_result", "awaiting_confirmation", "user_decision", "final_result", "show_rejected_message", "trigger_run", "saved_query", "raw_json_outputs"]:
                     if k in st.session_state:
@@ -846,7 +851,7 @@ with tab_pipeline:
                     st.session_state.agents_state["confirm"]["status"] = "completed"
                     st.session_state.agents_state["confirm"]["output"] = {
                         "mode": "Auto-approbation (Mock)",
-                        "résultat": "✅ APPROUVÉ automatiquement"
+                        "résultat": "APPROUVÉ automatiquement"
                     }
                     update_display(placeholders)
                     time.sleep(0.2)
@@ -857,7 +862,7 @@ with tab_pipeline:
                     if st.session_state.final_result and st.session_state.final_result.get("success"):
                         result_container.markdown("""
                         <div class="success-banner">
-                            <h3>✅ Pipeline Terminé!</h3>
+                            <h3>Pipeline Terminé!</h3>
                             <p>L'ordre a été soumis (mode Mock)</p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -895,7 +900,7 @@ with tab_pipeline:
             if st.session_state.final_result and st.session_state.final_result.get("success"):
                 result_container.markdown("""
                 <div class="success-banner">
-                    <h3>✅ Pipeline Terminé!</h3>
+                    <h3>Pipeline Terminé!</h3>
                     <p>L'ordre a été soumis avec succès à OpenSlice</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -965,3 +970,145 @@ with tab_json:
             st.json(st.session_state.raw_json_outputs["submit_response"], expanded=True)
         else:
             st.info("⏳ Soumettez un ordre pour voir la réponse")
+
+# ============================================================
+# Tab Orders - Affichage de tous les ordres OpenSlice
+# ============================================================
+
+with tab_orders:
+    st.markdown('<div class="section-title"> Liste des Ordres OpenSlice</div>', unsafe_allow_html=True)
+    
+    # Afficher l'endpoint + bouton sur la même ligne
+    from config import settings
+    api_endpoint_path = "/tmf-api/serviceOrdering/v4/serviceOrder"
+    api_endpoint = f"{settings.openslice_base_url}{api_endpoint_path}"
+    
+    col_endpoint, col_btn = st.columns([4, 1])
+    with col_endpoint:
+        st.markdown(f"""
+        <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); 
+                    border-radius: 8px; padding: 0.6rem 1rem;
+                    border: 1px solid rgba(99, 102, 241, 0.2); display: flex; align-items: center; gap: 1rem;">
+            <span style="color: #a5b4fc; font-weight: 600; white-space: nowrap;">🔗 Endpoint API</span>
+            <code style="color: #34d399; background: rgba(16, 185, 129, 0.1); padding: 5px 10px; 
+                         border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; white-space: nowrap;">
+                GET {api_endpoint_path}
+            </code>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_btn:
+        fetch_btn = st.button("Charger les ordres", type="primary", use_container_width=True)
+    
+    # Initialiser l'état pour les ordres
+    if "orders_list" not in st.session_state:
+        st.session_state.orders_list = None
+    if "orders_error" not in st.session_state:
+        st.session_state.orders_error = None
+    if "orders_loading" not in st.session_state:
+        st.session_state.orders_loading = False
+    
+    if fetch_btn:
+        st.session_state.orders_loading = True
+        st.session_state.orders_error = None
+        
+        try:
+            from mcp.openslice_client import OpenSliceClient
+            
+            with st.spinner("🔍 Connexion et récupération des ordres..."):
+                client = OpenSliceClient()
+                client.authenticate()
+                
+                if client.mock_mode:
+                    # Mode Mock : générer des données de démo
+                    st.session_state.orders_list = [
+                        {
+                            "id": "mock-order-001",
+                            "externalId": "XR-Network-Demo-001",
+                            "state": "acknowledged",
+                            "orderDate": "2025-03-15T10:30:00Z",
+                            "priority": "1",
+                            "description": "XR Applications Network Order (Mock)"
+                        },
+                        {
+                            "id": "mock-order-002",
+                            "externalId": "5G-Slice-Nice-002",
+                            "state": "inProgress",
+                            "orderDate": "2025-03-14T14:45:00Z",
+                            "priority": "2",
+                            "description": "5G Network Slice - Nice Area (Mock)"
+                        },
+                        {
+                            "id": "mock-order-003",
+                            "externalId": "VR-Collaboration-003",
+                            "state": "completed",
+                            "orderDate": "2025-03-10T09:00:00Z",
+                            "priority": "1",
+                            "description": "VR Collaboration Platform (Mock)"
+                        }
+                    ]
+                else:
+                    # Mode réel : appel API
+                    url = f"{client.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
+                    response = client.client.get(url, headers=client._get_headers())
+                    response.raise_for_status()
+                    st.session_state.orders_list = response.json()
+                
+                client.close() if hasattr(client, 'close') and client.client else None
+                
+        except Exception as e:
+            st.session_state.orders_error = str(e)
+            st.session_state.orders_list = None
+        
+        st.session_state.orders_loading = False
+        st.rerun()
+    
+    # Affichage des résultats
+    if st.session_state.orders_error:
+        st.error(f"❌ Erreur lors de la récupération : {st.session_state.orders_error}")
+    
+    elif st.session_state.orders_list is not None:
+        orders = st.session_state.orders_list
+        
+        if orders:
+            state_colors = {
+                "acknowledged": "#fbbf24",
+                "inProgress": "#60a5fa",
+                "completed": "#10b981",
+                "failed": "#ef4444",
+                "cancelled": "#6b7280"
+            }
+            
+            rows_html = ""
+            for i, order in enumerate(orders):
+                order_id = order.get('id', 'N/A')
+                state = order.get('state', 'N/A')
+                order_date = order.get('orderDate', order.get('requestedStartDate', order.get('@baseType', 'N/A')))
+                date_short = order_date[:10] if isinstance(order_date, str) and len(order_date) >= 10 else 'N/A'
+                color = state_colors.get(state, "#94a3b8")
+                id_display = f"{str(order_id)[:32]}..." if len(str(order_id)) > 32 else order_id
+                row_bg = "rgba(99,102,241,0.04)" if i % 2 == 0 else "transparent"
+
+                rows_html += f"""<tr style="background:{row_bg}; border-bottom:1px solid rgba(99,102,241,0.08);">
+                    <td style="padding:9px 14px; color:#64748b; font-size:0.78rem; font-family:'JetBrains Mono',monospace;">{id_display}</td>
+                    <td style="padding:9px 14px;"><span style="color:{color}; font-weight:500;">● {state}</span></td>
+                    <td style="padding:9px 14px; color:#94a3b8;">{date_short}</td>
+                </tr>"""
+            
+            st.markdown(f"""<div style="margin-top:0.75rem; border-radius:10px; overflow:hidden; border:1px solid rgba(99,102,241,0.2);">
+            <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
+                <thead>
+                    <tr style="background:rgba(99,102,241,0.12);">
+                        <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">ID</th>
+                        <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">État</th>
+                        <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">Date</th>
+                    </tr>
+                </thead>
+                <tbody>{rows_html}</tbody>
+            </table></div>""", unsafe_allow_html=True)
+            
+            with st.expander("📄 JSON brut", expanded=False):
+                st.json(orders)
+        else:
+            st.info("📭 Aucun ordre trouvé dans OpenSlice")
+    else:
+        pass

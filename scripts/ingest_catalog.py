@@ -295,47 +295,42 @@ def create_mock_services():
     # Services de test
     mock_services = [
         {
-            "id": "mock-xr-service-001",
-            "name": "XR Application Bundle",
-            "description": "Extended Reality service bundle for AR, VR, and MR applications with low latency 5G connectivity and edge computing resources",
-            "category": "XR",
-            "type": "5G Edge Service",
-            "num_characteristics": "5"
+            "id": "xr-ar-001",
+            "name": "Edge_AR_Content_Provider",
+            "description": "Serveur de contenu pour réalité augmentée (AR) optimisé pour le rendu Edge à basse latence.",
+            "metadata": { "category": "XR", "type": "AR" }
         },
         {
-            "id": "mock-video-streaming-002",
-            "name": "4K Video Streaming Service",
-            "description": "High-definition video streaming service with CDN and adaptive bitrate for residential customers",
-            "category": "Video",
-            "type": "Streaming",
-            "num_characteristics": "4"
+            "id": "xr-mr-002",
+            "name": "Mixed_Reality_Collab_Hub",
+            "description": "Plateforme de collaboration pour réalité mixte (MR) permettant le partage d'hologrammes multi-utilisateurs.",
+            "metadata": { "category": "XR", "type": "MR" }
         },
         {
-            "id": "mock-iot-platform-003",
-            "name": "IoT Platform Service",
-            "description": "Industrial IoT platform with device management, data ingestion, and analytics for smart city applications",
-            "category": "IoT",
-            "type": "Platform",
-            "num_characteristics": "6"
+            "id": "xr-vr-003",
+            "name": "VR_Simulation_Core",
+            "description": "Moteur de simulation haute fidélité pour environnements de réalité virtuelle (VR) immersive.",
+            "metadata": { "category": "XR", "type": "VR" }
         },
         {
-            "id": "mock-edge-compute-004",
-            "name": "Edge Computing Service",
-            "description": "Low-latency edge computing infrastructure for compute-intensive applications near the network edge",
-            "category": "Edge",
-            "type": "Compute",
-            "num_characteristics": "3"
+            "id": "net-5g-paris",
+            "name": "5G_Slice_Paris_Region",
+            "description": "Connectivité 5G ultra-rapide couvrant l'Île-de-France (Paris) avec garantie de latence < 5ms.",
+            "metadata": { "category": "Network", "location": "Paris" }
         },
         {
-            "id": "mock-5g-slice-005",
-            "name": "5G Network Slice - eMBB",
-            "description": "Enhanced Mobile Broadband 5G network slice with high throughput and low latency for mobile applications",
-            "category": "5G",
-            "type": "Network Slice",
-            "num_characteristics": "7"
+            "id": "trap-video-001",
+            "name": "HD_Video_Streaming_Standard",
+            "description": "Service de diffusion vidéo classique pour contenu multimédia standard sur le web.",
+            "metadata": { "category": "Entertainment" }
+        },
+        {
+            "id": "trap-4g-002",
+            "name": "Legacy_4G_LTE_Access",
+            "description": "Accès réseau mobile 4G LTE standard pour smartphones et tablettes.",
+            "metadata": { "category": "Network" }
         }
     ]
-    
     ids = []
     documents = []
     metadatas = []
@@ -352,7 +347,7 @@ def create_mock_services():
             "name": service["name"],
             "category": service["category"],
             "type": service["type"],
-            "num_characteristics": service["num_characteristics"],
+            # "num_characteristics": service["num_characteristics"],
             "status": "active"
         }
         metadatas.append(metadata)
