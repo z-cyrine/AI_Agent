@@ -147,11 +147,12 @@ def get_css():
     }
     
     .agent-card.pending { 
-        border-left-color: #475569; 
+        border-left-color: #94a3b8; 
         opacity: 0.5;
     }
     .agent-card.pending::before {
-        background: #475569;
+        background: #94a3b8;
+        box-shadow: 0 0 8px rgba(148, 163, 184, 0.4);
     }
     
     .agent-card.running { 
@@ -177,6 +178,7 @@ def get_css():
     }
     .agent-card.completed::before {
         background: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
     }
     
     .agent-card.error { 
@@ -185,16 +187,19 @@ def get_css():
     }
     .agent-card.error::before {
         background: #ef4444;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
     }
     
     .agent-card.waiting { 
-        border-left-color: #6366f1; 
-        background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%);
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+        border-left-color: #f59e0b; 
+        background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.04) 100%);
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
         opacity: 1;
     }
     .agent-card.waiting::before {
-        background: #6366f1;
+        background: #f59e0b;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+        animation: pulse-dot 1.5s ease-in-out infinite;
     }
     
     .agent-header {
@@ -1076,7 +1081,6 @@ with tab_orders:
             rows_html = ""
             for i, order in enumerate(orders):
                 order_id = order.get('id', 'N/A')
-                ext_id = order.get('externalId', order.get('description', 'N/A'))
                 state = order.get('state', 'N/A')
                 order_date = order.get('orderDate', order.get('requestedStartDate', order.get('@baseType', 'N/A')))
                 date_short = order_date[:10] if isinstance(order_date, str) and len(order_date) >= 10 else 'N/A'
@@ -1085,7 +1089,6 @@ with tab_orders:
                 row_bg = "rgba(99,102,241,0.04)" if i % 2 == 0 else "transparent"
 
                 rows_html += f"""<tr style="background:{row_bg}; border-bottom:1px solid rgba(99,102,241,0.08);">
-                    <td style="padding:9px 14px; color:#e2e8f0; font-weight:500;">{ext_id}</td>
                     <td style="padding:9px 14px; color:#64748b; font-size:0.78rem; font-family:'JetBrains Mono',monospace;">{id_display}</td>
                     <td style="padding:9px 14px;"><span style="color:{color}; font-weight:500;">● {state}</span></td>
                     <td style="padding:9px 14px; color:#94a3b8;">{date_short}</td>
@@ -1095,7 +1098,6 @@ with tab_orders:
             <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
                 <thead>
                     <tr style="background:rgba(99,102,241,0.12);">
-                        <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">External ID</th>
                         <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">ID</th>
                         <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">État</th>
                         <th style="padding:10px 14px; color:#a5b4fc; font-weight:600; text-align:left;">Date</th>
