@@ -114,7 +114,7 @@ class OpenSliceMCPServer:
                 "handler": self._tool_validate_service_order
             }
         }
-        logger.info(f"✅ {len(self._tools)} outils MCP enregistrés")
+        logger.info(f"{len(self._tools)} outils MCP enregistrés")
     
     def _register_resources(self):
         """Enregistre toutes les ressources MCP disponibles"""
@@ -138,7 +138,7 @@ class OpenSliceMCPServer:
         """Outil MCP: Authentification auprès de Keycloak"""
         try:
             token = self.client.authenticate()
-            logger.info("✅ Authentification réussie")
+            logger.info("Authentification réussie")
             return {
                 "status": "success",
                 "message": "Token JWT obtenu auprès de Keycloak",

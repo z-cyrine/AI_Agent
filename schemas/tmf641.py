@@ -1,9 +1,9 @@
 """
 Schémas Pydantic pour TMF641 - Service Ordering Management API
 
-Référence: https://www.tmforum.org/resources/specification/tmf641-service-ordering-api-rest-specification-r19-0-1/
+Référence: https://tgotwig.github.io/TMF641_ServiceOrder/#/serviceOrder/listServiceOrder
 
-Ces schémas seront utilisés par les Agents 3 et 4 (Sarra)
+Ces schémas seront utilisés par les Agents 3 et 4
 """
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any

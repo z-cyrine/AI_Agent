@@ -50,7 +50,7 @@ class ServiceSelectorAgent:
         os.makedirs(self.persist_directory, exist_ok=True)
         
         # Initialiser le modèle d'embeddings (une seule fois, via ChromaDB)
-        print(f"📦 Chargement du modèle d'embeddings: {self.embedding_model_name}")
+        print(f"Chargement du modèle d'embeddings: {self.embedding_model_name}")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=self.embedding_model_name
         )
@@ -142,7 +142,7 @@ class ServiceSelectorAgent:
         min_score: float = 0.5
     ) -> List[Dict[str, Any]]:
         """
-        Sélectionne le meilleur service pour CHAQUE sous-intention.
+        Sélectionne le meilleur service pour chaque sous-intention.
 
         Logique :
         - Récupère top_k candidats par sous-intention (pour avoir des alternatives)
@@ -174,7 +174,7 @@ class ServiceSelectorAgent:
         ]
         """
         if self.collection.count() == 0:
-            print("⚠️  La collection est vide. Exécutez d'abord le script d'ingestion.")
+            print("    La collection est vide. Exécutez d'abord le script d'ingestion.")
             return []
 
         services = []
@@ -182,7 +182,7 @@ class ServiceSelectorAgent:
 
         for sub_intent in intent.sub_intents:
             query = self._sub_intent_to_query(sub_intent, intent)
-            print(f"🔍 [{sub_intent.domain}] Requête: {query[:120]}...")
+            print(f"    [{sub_intent.domain}] Requête: {query[:120]}...")
 
             candidates = self._query_chromadb(query, top_k=top_k, min_score=min_score)
 
@@ -205,9 +205,9 @@ class ServiceSelectorAgent:
                 alt_info = f" (+{len(alternatives)} alternative(s))" if alternatives else ""
                 print(f"    Sélectionné: {selected['name']} (score: {selected['score']}){alt_info}")
             else:
-                print(f"   ⚠️  Aucun service trouvé pour le domaine '{sub_intent.domain}'")
+                print(f"    Aucun service trouvé pour le domaine '{sub_intent.domain}'")
 
-        print(f"\n {len(services)} service(s) sélectionné(s) au total ({len(intent.sub_intents)} sous-intentions)")
+        print(f"\n    {len(services)} service(s) sélectionné(s) au total ({len(intent.sub_intents)} sous-intentions)")
         return services
     
     def get_best_service(self, intent: Intent) -> Optional[Dict[str, Any]]:

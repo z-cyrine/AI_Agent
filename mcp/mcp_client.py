@@ -47,7 +47,7 @@ class MCPClient:
         if mode == "local":
             # Mode local : communication directe avec le serveur MCP
             self.mcp_server = OpenSliceMCPServer()
-            logger.info("✅ Client MCP initialisé (mode LOCAL - communication directe)")
+            logger.info("   Client MCP initialisé (mode LOCAL - communication directe)")
         else:
             raise NotImplementedError("Mode 'remote' nécessite une implémentation HTTP")
     
@@ -62,7 +62,7 @@ class MCPClient:
         Returns:
             Dict avec token JWT et statut
         """
-        logger.info("Appel MCP: authenticate()")
+        logger.info("   Appel MCP: authenticate()")
         return self.call_tool("authenticate")
     
     def get_service_catalog(self) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services
         """
-        logger.info("Appel MCP: get_service_catalog()")
+        logger.info("   Appel MCP: get_service_catalog()")
         return self.call_tool("get_service_catalog")
     
     def submit_service_order(self, service_order_json: str) -> Dict[str, Any]:
@@ -89,7 +89,7 @@ class MCPClient:
         Returns:
             Dict avec l'ID de l'ordre créé
         """
-        logger.info("Appel MCP: submit_service_order()")
+        logger.info("   Appel MCP: submit_service_order()")
         return self.call_tool("submit_service_order", service_order_json=service_order_json)
     
     def get_order_status(self, order_id: str) -> Dict[str, Any]:
@@ -104,7 +104,7 @@ class MCPClient:
         Returns:
             Dict avec l'état actuel de l'ordre
         """
-        logger.info(f"Appel MCP: get_order_status({order_id})")
+        logger.info(f"   Appel MCP: get_order_status({order_id})")
         return self.call_tool("get_order_status", order_id=order_id)
     
     def get_service_inventory(self) -> Dict[str, Any]:
@@ -114,7 +114,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services déployés
         """
-        logger.info("Appel MCP: get_service_inventory()")
+        logger.info("   Appel MCP: get_service_inventory()")
         return self.call_tool("get_service_inventory")
     
     def validate_service_order(self, service_order_json: str) -> Dict[str, Any]:
@@ -129,7 +129,7 @@ class MCPClient:
         Returns:
             Dict avec is_valid (bool), erreurs, avertissements
         """
-        logger.info("Appel MCP: validate_service_order()")
+        logger.info("   Appel MCP: validate_service_order()")
         return self.call_tool("validate_service_order", service_order_json=service_order_json)
     
     # ========================================================================
@@ -143,7 +143,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services et les métadonnées
         """
-        logger.info("Lecture ressource MCP: catalog://services")
+        logger.info("   Lecture ressource MCP: catalog://services")
         return self.read_resource("catalog://services")
     
     def read_inventory(self) -> Dict[str, Any]:
@@ -153,7 +153,7 @@ class MCPClient:
         Returns:
             Dict avec la liste des services déployés
         """
-        logger.info("Lecture ressource MCP: inventory://services")
+        logger.info("   Lecture ressource MCP: inventory://services")
         return self.read_resource("inventory://services")
     
     # ========================================================================
@@ -213,17 +213,19 @@ class MCPClient:
     
     def get_available_tools(self) -> Dict[str, Any]:
         """Retourne la liste des outils MCP disponibles"""
+        logger.info("   Récupération des outils MCP disponibles")
         return self.mcp_server.get_tools_info()
     
     def get_available_resources(self) -> Dict[str, str]:
         """Retourne la liste des ressources MCP disponibles"""
+        logger.info("   Récupération des ressources MCP disponibles")
         return self.mcp_server.get_resources_info()
     
     def close(self):
         """Ferme la connexion MCP"""
         if self.mode == "local":
             self.mcp_server.close()
-            logger.info("Client MCP fermé")
+            logger.info("   Client MCP fermé")
 
 
 # ============================================================================

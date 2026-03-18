@@ -1,3 +1,9 @@
+"""
+Agent 4: Le Validateur (Quality Assurance)
+
+Rôle: Validation et soumission des ordres de service via le protocole MCP
+Technologie: Pydantic + MCP Client + OpenSlice REST API
+"""
 from typing import Tuple, List
 from pydantic import ValidationError
 from schemas.tmf641 import ServiceOrder
@@ -36,7 +42,7 @@ class ServiceValidatorAgent:
             # Logger les avertissements (ne pas bloquer)
             if warnings:
                 for warning in warnings:
-                    print(f"⚠️  Avertissement: {warning}")
+                    print(f"    Avertissement: {warning}")
             
             return is_valid, errors
 

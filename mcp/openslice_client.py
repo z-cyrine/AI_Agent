@@ -3,8 +3,6 @@ Client HTTP pour OpenSlice
 
 Role : Encapsule les appels HTTP vers l'API REST OpenSlice (TMF633, TMF641, TMF638)
        et l'authentification Keycloak.
-       
-Mode Mock : Si OPENSLICE_MOCK_MODE=true dans .env, simule les réponses sans connexion réelle.
 """
 import os
 import uuid
@@ -30,7 +28,7 @@ class OpenSliceClient:
         self.mock_mode = mock_mode if mock_mode is not None else settings.openslice_mock_mode
         
         if self.mock_mode:
-            print("🔶 [MOCK MODE] Client OpenSlice en mode simulation (pas de connexion réelle)")
+            print("[MOCK MODE] Client OpenSlice en mode simulation (pas de connexion réelle)")
         
         self.base_url = base_url or settings.openslice_base_url
         self.auth_url = auth_url or settings.openslice_auth_url 
@@ -51,7 +49,7 @@ class OpenSliceClient:
         """
         if self.mock_mode:
             self.token = "mock-jwt-token-for-testing-purposes-only"
-            print("🔶 [MOCK] Authentification simulée -- Token JWT fictif généré")
+            print("[MOCK] Authentification simulée -- Token JWT fictif généré")
             return self.token
             
         token_url = f"{self.auth_url}/auth/realms/openslice/protocol/openid-connect/token"
@@ -100,7 +98,7 @@ class OpenSliceClient:
         En mode mock, retourne une liste vide (utiliser ChromaDB avec --mock).
         """
         if self.mock_mode:
-            print("🔶 [MOCK] Catalogue simulé (utilisez ChromaDB avec --mock pour les services)")
+            print("[MOCK] Catalogue simulé (utilisez ChromaDB avec --mock pour les services)")
             # Retourner les services mock similaires à ceux dans ingest_catalog.py
             return [
                 {"id": "mock-xr-service-001", "name": "XR Application Bundle", "description": "Extended Reality service bundle"},
@@ -139,17 +137,14 @@ class OpenSliceClient:
         """
         Soumet un ordre de service a OpenSlice (TMF641).
 
-        Note: L'URL correcte est /tmf-api/serviceOrdering/v4/serviceOrder
-        (sans 'Management' dans le path, contrairement au catalogue).
-
         Appelle : POST http://localhost:13082/tmf-api/serviceOrdering/v4/serviceOrder
         Retourne : la reponse OpenSlice avec l'ID et le statut de l'ordre cree
         """
         # Mode mock : simuler la soumission
         if self.mock_mode:
             order_id = f"mock-order-{uuid.uuid4().hex[:8]}"
-            print(f"🔶 [MOCK] Soumission simulée de l'ordre")
-            print(f"✅ [MOCK] Ordre créé -- ID: {order_id} | Statut: ACKNOWLEDGED")
+            print(f"[MOCK] Soumission simulée de l'ordre")
+            print(f"[MOCK] Ordre créé -- ID: {order_id} | Statut: ACKNOWLEDGED")
             
             # Stocker l'ordre simulé
             mock_result = {
@@ -166,15 +161,14 @@ class OpenSliceClient:
         url = f"{self.base_url}/tmf-api/serviceOrdering/v4/serviceOrder"
 
         print(f"Soumission de l'ordre sur: {url}")
-        print(f"⏳ En attente de la réponse OpenSlice (timeout: 300 secondes)...")
+        print(f"En attente de la réponse OpenSlice (timeout: 300 secondes)...")
 
-        # ✅ NE PAS ajouter de dates - laisser OpenSlice les générer
         # Les dates sont optionnelles et OpenSlice peut les créer automatiquement
 
         try:
             print(f"Envoi de {len(str(service_order))} caractères...")
             
-            # ✅ Timeout très long (300s = 5 min) car OpenSlice peut être lent
+            # Timeout très long (300s = 5 min) car OpenSlice peut être lent
             response = self.client.post(url, headers=self._get_headers(), json=service_order, timeout=300.0)
             response.raise_for_status()
 
@@ -182,18 +176,18 @@ class OpenSliceClient:
             order_id = result.get("id", "inconnu")
             state = result.get("state", "inconnu")
 
-            print(f"✅ Ordre créé avec succès -- ID: {order_id} | Statut: {state}")
+            print(f"Ordre créé avec succès -- ID: {order_id} | Statut: {state}")
             return result
 
         except httpx.TimeoutException as e:
-            print(f"⏱️  TIMEOUT: OpenSlice a mis trop de temps à répondre ({e})")
+            print(f"TIMEOUT: OpenSlice a mis trop de temps à répondre ({e})")
             print(f"   L'ordre peut quand même être en cours de création côté OpenSlice")
             raise
         except httpx.HTTPStatusError as e:
-            print(f"❌ Erreur HTTP {e.response.status_code}: {e.response.text}")
+            print(f"Erreur HTTP {e.response.status_code}: {e.response.text}")
             raise
         except Exception as e:
-            print(f"❌ Erreur lors de la soumission de l'ordre: {e}")
+            print(f"Erreur lors de la soumission de l'ordre: {e}")
             raise
 
     def get_service_status(self, order_id: str) -> Dict[str, Any]:

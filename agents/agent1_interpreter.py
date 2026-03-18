@@ -31,22 +31,6 @@ class IntentInterpreterAgent:
     - Application web: frontend, backend, database
     - IoT: sensors, gateway, analytics
     - Etc.
-    
-    Exemple d'utilisation:
-    ```python
-    agent = IntentInterpreterAgent()
-    
-    # Exemple 1: Infrastructure réseau
-    intent = agent.interpret("I need XR applications with 5G connectivity...")
-    
-    # Exemple 2: Application web
-    intent = agent.interpret("Deploy an e-commerce platform with PostgreSQL...")
-    
-    # Exemple 3: IoT
-    intent = agent.interpret("Smart city IoT platform with 1000 sensors...")
-    
-    print(intent.model_dump_json(indent=2))
-    ```
     """
     
     def __init__(self, llm_model: Optional[str] = None, temperature: float = 0.0):
@@ -319,7 +303,7 @@ def test_agent():
         return intent
         
     except Exception as e:
-        print(f"❌ Erreur: {e}")
+        print(f"Erreur: {e}")
         raise
 
 

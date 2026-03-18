@@ -13,14 +13,9 @@ from typing import Dict, Any
 
 # Configuration de la page
 st.set_page_config(
-    page_title="IBN Pipeline - Live Demo",
-    page_icon="🚀",
+    page_title="IBN Pipeline",
     layout="wide"
 )
-
-# ============================================================
-# CSS - Cached pour éviter le retraitement à chaque rerun
-# ============================================================
 
 @st.cache_data
 def get_css():
@@ -209,7 +204,11 @@ def get_css():
         margin-bottom: 4px;
     }
     .agent-icon {
-        font-size: 1.1rem;
+        font-size: 0.65rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.5px;
+        color: #a5b4fc;
         width: 36px;
         height: 36px;
         display: flex;
@@ -516,12 +515,12 @@ def render_agent_html(agent_id: str, name: str, icon: str, description: str) -> 
 
 def update_display(placeholders: dict):
     agents = [
-        ("agent1", "Agent 1 - Interpréteur", "🧠", "Transforme le langage naturel → Intention JSON"),
-        ("agent2", "Agent 2 - Sélecteur RAG", "🔍", "Recherche sémantique dans ChromaDB"),
-        ("agent3", "Agent 3 - Traducteur", "📝", "Génère l'ordre TMF641"),
-        ("agent4", "Agent 4 - Validateur", "✅", "Valide via MCP"),
-        ("confirm", "Confirmation", "👤", "Approbation de l'ordre"),
-        ("submit", "Soumission", "🚀", "Envoi vers OpenSlice"),
+        ("agent1", "Agent 1 - Interpréteur", "NLP", "Transforme le langage naturel → Intention JSON"),
+        ("agent2", "Agent 2 - Sélecteur RAG", "RAG", "Recherche sémantique dans ChromaDB"),
+        ("agent3", "Agent 3 - Traducteur", "TMF", "Génère l'ordre TMF641"),
+        ("agent4", "Agent 4 - Validateur", "QA", "Valide les ordres de service"),
+        ("confirm", "Confirmation", "USR", "Approbation de l'ordre"),
+        ("submit", "Soumission", "RUN", "Envoi vers OpenSlice"),
     ]
     
     for agent_id, name, icon, desc in agents:
@@ -549,7 +548,6 @@ def run_pipeline_phase1(user_query: str, placeholders: dict):
         
         workflow = create_workflow()
         
-        # ⚠️ non_interactive_mode=True pour éviter le input() bloquant dans le terminal
         initial_state = AgentState(
             user_query=user_query,
             intent=None, intent_errors=[],
@@ -560,7 +558,7 @@ def run_pipeline_phase1(user_query: str, placeholders: dict):
             user_approved=False,  # On ne soumet PAS encore
             user_wants_to_retry=False,
             user_retry_count=0,
-            non_interactive_mode=True,  # Skip le input() terminal - confirmation via UI
+            non_interactive_mode=True, 
             openslice_response=None,
             final_status="pending"
         )
@@ -608,7 +606,7 @@ def run_pipeline_phase1(user_query: str, placeholders: dict):
             st.session_state.raw_json_outputs["agent2_services"] = svcs
         else:
             st.session_state.agents_state["agent2"]["status"] = "completed"
-            st.session_state.agents_state["agent2"]["output"] = {"warning": "⚠️ Aucun service trouvé"}
+            st.session_state.agents_state["agent2"]["output"] = {"warning": "Aucun service trouvé"}
             st.session_state.raw_json_outputs["agent2_services"] = []
         update_display(placeholders)
         time.sleep(0.2)
@@ -727,7 +725,7 @@ def run_pipeline_phase2_submit(placeholders: dict):
         else:
             st.session_state.agents_state["submit"]["status"] = "error"
             st.session_state.agents_state["submit"]["output"] = {
-                "statut": "❌ ÉCHEC",
+                "statut": "ÉCHEC",
                 "message": response.get("message", "?")
             }
             st.session_state.final_result = {"success": False, "response": response}
@@ -804,7 +802,7 @@ with tab_pipeline:
         # Placeholder pour confirm
         placeholders["confirm"] = st.empty()
         
-        # Container pour les boutons de confirmation (s'affiche DANS le flux après confirm)
+        # Container pour les boutons de confirmation
         confirm_buttons_container = st.container()
         
         # Placeholder pour submit
@@ -812,7 +810,7 @@ with tab_pipeline:
         
         update_display(placeholders)
         
-        # Boutons de confirmation DANS le container (apparaît juste après la carte confirm)
+        # Boutons de confirmation
         if st.session_state.awaiting_confirmation and st.session_state.pipeline_result:
             with confirm_buttons_container:
                 col_spacer1, col_accept, col_reject, col_spacer2 = st.columns([0.5, 2, 2, 0.5])
@@ -830,7 +828,7 @@ with tab_pipeline:
         result_container = st.empty()
         
         # ============================================================
-        # Logique d'exécution - DANS LE CONTEXTE DES PLACEHOLDERS
+        # Logique d'exécution 
         # ============================================================
         
         # Phase 1 : Lancer le pipeline (déclenché par trigger_run)
@@ -923,7 +921,7 @@ with tab_pipeline:
         if st.session_state.get("show_rejected_message", False):
             result_container.markdown("""
             <div class="cancelled-banner">
-                <h3>⚠️ Ordre Rejeté</h3>
+                <h3>Ordre Rejeté</h3>
                 <p>L'ordre n'a pas été soumis - Saisissez une nouvelle requête et relancez le pipeline</p>
             </div>
             """, unsafe_allow_html=True)
@@ -933,39 +931,39 @@ with tab_pipeline:
 # ============================================================
 
 with tab_json:
-    st.markdown('<div class="section-title">📝 Outputs JSON des Agents</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Outputs JSON des Agents</div>', unsafe_allow_html=True)
     st.markdown('<p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">JSON complet généré par chaque agent. Cliquez sur ▶ pour déplier.</p>', unsafe_allow_html=True)
     
     json_cols = st.columns(2)
 
     with json_cols[0]:
-        with st.expander("🧠 Agent 1 - Intent JSON", expanded=True):
+        with st.expander("Agent 1 - Intent JSON", expanded=True):
             if st.session_state.raw_json_outputs.get("agent1_intent"):
                 st.json(st.session_state.raw_json_outputs["agent1_intent"], expanded=True)
             else:
                 st.info("⏳ Exécutez le pipeline pour voir l'output")
         
-        with st.expander("📝 Agent 3 - Service Order TMF641", expanded=True):
+        with st.expander("Agent 3 - Service Order TMF641", expanded=True):
             if st.session_state.raw_json_outputs.get("agent3_order"):
                 st.json(st.session_state.raw_json_outputs["agent3_order"], expanded=True)
             else:
                 st.info("⏳ Exécutez le pipeline pour voir l'output")
 
     with json_cols[1]:
-        with st.expander("🔍 Agent 2 - Services RAG", expanded=True):
+        with st.expander("Agent 2 - Services RAG", expanded=True):
             if st.session_state.raw_json_outputs.get("agent2_services"):
                 st.json(st.session_state.raw_json_outputs["agent2_services"], expanded=True)
             else:
                 st.info("⏳ Exécutez le pipeline pour voir l'output")
         
-        with st.expander("✅ Agent 4 - Validation MCP", expanded=True):
+        with st.expander("Agent 4 - Validation MCP", expanded=True):
             if st.session_state.raw_json_outputs.get("agent4_validation"):
                 st.json(st.session_state.raw_json_outputs["agent4_validation"], expanded=True)
             else:
                 st.info("⏳ Exécutez le pipeline pour voir l'output")
 
     # Ligne séparée pour Submit Response
-    with st.expander("🚀 Réponse Soumission (OpenSlice)", expanded=True):
+    with st.expander("Réponse Soumission (OpenSlice)", expanded=True):
         if st.session_state.raw_json_outputs.get("submit_response"):
             st.json(st.session_state.raw_json_outputs["submit_response"], expanded=True)
         else:
@@ -1014,7 +1012,7 @@ with tab_orders:
         try:
             from mcp.openslice_client import OpenSliceClient
             
-            with st.spinner("🔍 Connexion et récupération des ordres..."):
+            with st.spinner("Connexion et récupération des ordres..."):
                 client = OpenSliceClient()
                 client.authenticate()
                 
@@ -1064,7 +1062,7 @@ with tab_orders:
     
     # Affichage des résultats
     if st.session_state.orders_error:
-        st.error(f"❌ Erreur lors de la récupération : {st.session_state.orders_error}")
+        st.error(f"Erreur lors de la récupération : {st.session_state.orders_error}")
     
     elif st.session_state.orders_list is not None:
         orders = st.session_state.orders_list
@@ -1106,9 +1104,9 @@ with tab_orders:
                 <tbody>{rows_html}</tbody>
             </table></div>""", unsafe_allow_html=True)
             
-            with st.expander("📄 JSON brut", expanded=False):
+            with st.expander("JSON brut", expanded=False):
                 st.json(orders)
         else:
-            st.info("📭 Aucun ordre trouvé dans OpenSlice")
+            st.info("Aucun ordre trouvé dans OpenSlice")
     else:
         pass
