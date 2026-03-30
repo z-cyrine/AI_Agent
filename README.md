@@ -1,5 +1,7 @@
 # Agentic AI Framework — Gestion de Services Réseau Basée sur les Intentions (IBN)
 
+Ce projet s’inscrit dans le cadre du projet VAP-DSI, sous l’encadrement de Mme Hayet Brabra et du Prof. Walid Gaaloul.
+
 Framework multi-agents pour la gestion automatisée de services réseau selon le paradigme
 Intent-Based Networking (IBN). L'utilisateur exprime un besoin en langage naturel et le
 système orchestre un pipeline de 4 agents spécialisés pour produire et soumettre un ordre
